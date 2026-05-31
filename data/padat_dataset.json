@@ -1,0 +1,599 @@
+{
+  "scenario": "padat",
+  "scenario_name": "Padat",
+  "description": "4 transaksi per 5 detik",
+  "metadata": {
+    "num_transactions": 80,
+    "avg_interarrival_time": 1.25,
+    "characteristics": {
+      "density": "High",
+      "transactions_per_5sec": 4,
+      "server_load": "Heavy - Antrean mulai terlihat"
+    },
+    "verification_time_distribution": {
+      "type": "Uniform",
+      "min": 2.0,
+      "max": 6.0,
+      "unit": "seconds"
+    },
+    "interarrival_time_distribution": {
+      "type": "Normal",
+      "mean": 1.25,
+      "std_dev": 0.375,
+      "minimum": 0.1,
+      "unit": "seconds"
+    }
+  },
+  "transactions": [
+    {
+      "transaction_id": "T1",
+      "sequence": 1,
+      "interarrival_time": 1.4363,
+      "arrival_time": 0.0,
+      "verification_time": 5.6303
+    },
+    {
+      "transaction_id": "T2",
+      "sequence": 2,
+      "interarrival_time": 1.1982,
+      "arrival_time": 1.4363,
+      "verification_time": 2.9972
+    },
+    {
+      "transaction_id": "T3",
+      "sequence": 3,
+      "interarrival_time": 1.4929,
+      "arrival_time": 2.6344,
+      "verification_time": 3.6415
+    },
+    {
+      "transaction_id": "T4",
+      "sequence": 4,
+      "interarrival_time": 1.8211,
+      "arrival_time": 4.1273,
+      "verification_time": 5.0222
+    },
+    {
+      "transaction_id": "T5",
+      "sequence": 5,
+      "interarrival_time": 1.1622,
+      "arrival_time": 5.9484,
+      "verification_time": 2.9152
+    },
+    {
+      "transaction_id": "T6",
+      "sequence": 6,
+      "interarrival_time": 1.1622,
+      "arrival_time": 7.1106,
+      "verification_time": 2.3079
+    },
+    {
+      "transaction_id": "T7",
+      "sequence": 7,
+      "interarrival_time": 1.8422,
+      "arrival_time": 8.2728,
+      "verification_time": 3.159
+    },
+    {
+      "transaction_id": "T8",
+      "sequence": 8,
+      "interarrival_time": 1.5378,
+      "arrival_time": 10.115,
+      "verification_time": 2.6449
+    },
+    {
+      "transaction_id": "T9",
+      "sequence": 9,
+      "interarrival_time": 1.0739,
+      "arrival_time": 11.6528,
+      "verification_time": 5.7188
+    },
+    {
+      "transaction_id": "T10",
+      "sequence": 10,
+      "interarrival_time": 1.4535,
+      "arrival_time": 12.7268,
+      "verification_time": 5.2325
+    },
+    {
+      "transaction_id": "T11",
+      "sequence": 11,
+      "interarrival_time": 1.0762,
+      "arrival_time": 14.1802,
+      "verification_time": 4.5336
+    },
+    {
+      "transaction_id": "T12",
+      "sequence": 12,
+      "interarrival_time": 1.0754,
+      "arrival_time": 15.2564,
+      "verification_time": 5.4858
+    },
+    {
+      "transaction_id": "T13",
+      "sequence": 13,
+      "interarrival_time": 1.3407,
+      "arrival_time": 16.3318,
+      "verification_time": 5.2147
+    },
+    {
+      "transaction_id": "T14",
+      "sequence": 14,
+      "interarrival_time": 0.5325,
+      "arrival_time": 17.6725,
+      "verification_time": 2.7463
+    },
+    {
+      "transaction_id": "T15",
+      "sequence": 15,
+      "interarrival_time": 0.6032,
+      "arrival_time": 18.2051,
+      "verification_time": 5.5702
+    },
+    {
+      "transaction_id": "T16",
+      "sequence": 16,
+      "interarrival_time": 1.0391,
+      "arrival_time": 18.8082,
+      "verification_time": 4.1574
+    },
+    {
+      "transaction_id": "T17",
+      "sequence": 17,
+      "interarrival_time": 0.8702,
+      "arrival_time": 19.8474,
+      "verification_time": 5.2298
+    },
+    {
+      "transaction_id": "T18",
+      "sequence": 18,
+      "interarrival_time": 1.3678,
+      "arrival_time": 20.7175,
+      "verification_time": 5.5844
+    },
+    {
+      "transaction_id": "T19",
+      "sequence": 19,
+      "interarrival_time": 0.9095,
+      "arrival_time": 22.0854,
+      "verification_time": 3.272
+    },
+    {
+      "transaction_id": "T20",
+      "sequence": 20,
+      "interarrival_time": 0.7204,
+      "arrival_time": 22.9949,
+      "verification_time": 2.4402
+    },
+    {
+      "transaction_id": "T21",
+      "sequence": 21,
+      "interarrival_time": 1.7996,
+      "arrival_time": 23.7153,
+      "verification_time": 2.9117
+    },
+    {
+      "transaction_id": "T22",
+      "sequence": 22,
+      "interarrival_time": 1.1653,
+      "arrival_time": 25.5149,
+      "verification_time": 3.7084
+    },
+    {
+      "transaction_id": "T23",
+      "sequence": 23,
+      "interarrival_time": 1.2753,
+      "arrival_time": 26.6802,
+      "verification_time": 5.2721
+    },
+    {
+      "transaction_id": "T24",
+      "sequence": 24,
+      "interarrival_time": 0.7157,
+      "arrival_time": 27.9555,
+      "verification_time": 5.4429
+    },
+    {
+      "transaction_id": "T25",
+      "sequence": 25,
+      "interarrival_time": 1.0459,
+      "arrival_time": 28.6713,
+      "verification_time": 2.0278
+    },
+    {
+      "transaction_id": "T26",
+      "sequence": 26,
+      "interarrival_time": 1.2916,
+      "arrival_time": 29.7171,
+      "verification_time": 4.043
+    },
+    {
+      "transaction_id": "T27",
+      "sequence": 27,
+      "interarrival_time": 0.8184,
+      "arrival_time": 31.0087,
+      "verification_time": 3.6696
+    },
+    {
+      "transaction_id": "T28",
+      "sequence": 28,
+      "interarrival_time": 1.3909,
+      "arrival_time": 31.8271,
+      "verification_time": 2.8884
+    },
+    {
+      "transaction_id": "T29",
+      "sequence": 29,
+      "interarrival_time": 1.0248,
+      "arrival_time": 33.218,
+      "verification_time": 2.4795
+    },
+    {
+      "transaction_id": "T30",
+      "sequence": 30,
+      "interarrival_time": 1.1406,
+      "arrival_time": 34.2427,
+      "verification_time": 3.3505
+    },
+    {
+      "transaction_id": "T31",
+      "sequence": 31,
+      "interarrival_time": 1.0244,
+      "arrival_time": 35.3833,
+      "verification_time": 5.7716
+    },
+    {
+      "transaction_id": "T32",
+      "sequence": 32,
+      "interarrival_time": 1.9446,
+      "arrival_time": 36.4077,
+      "verification_time": 3.2928
+    },
+    {
+      "transaction_id": "T33",
+      "sequence": 33,
+      "interarrival_time": 1.2449,
+      "arrival_time": 38.3523,
+      "verification_time": 4.0752
+    },
+    {
+      "transaction_id": "T34",
+      "sequence": 34,
+      "interarrival_time": 0.8534,
+      "arrival_time": 39.5973,
+      "verification_time": 4.8121
+    },
+    {
+      "transaction_id": "T35",
+      "sequence": 35,
+      "interarrival_time": 1.5585,
+      "arrival_time": 40.4506,
+      "verification_time": 3.4545
+    },
+    {
+      "transaction_id": "T36",
+      "sequence": 36,
+      "interarrival_time": 0.7922,
+      "arrival_time": 42.0091,
+      "verification_time": 5.8871
+    },
+    {
+      "transaction_id": "T37",
+      "sequence": 37,
+      "interarrival_time": 1.3283,
+      "arrival_time": 42.8012,
+      "verification_time": 5.8498
+    },
+    {
+      "transaction_id": "T38",
+      "sequence": 38,
+      "interarrival_time": 0.5151,
+      "arrival_time": 44.1296,
+      "verification_time": 3.0071
+    },
+    {
+      "transaction_id": "T39",
+      "sequence": 39,
+      "interarrival_time": 0.7519,
+      "arrival_time": 44.6447,
+      "verification_time": 3.989
+    },
+    {
+      "transaction_id": "T40",
+      "sequence": 40,
+      "interarrival_time": 1.3238,
+      "arrival_time": 45.3966,
+      "verification_time": 3.2035
+    },
+    {
+      "transaction_id": "T41",
+      "sequence": 41,
+      "interarrival_time": 1.5269,
+      "arrival_time": 46.7204,
+      "verification_time": 3.1394
+    },
+    {
+      "transaction_id": "T42",
+      "sequence": 42,
+      "interarrival_time": 1.3143,
+      "arrival_time": 48.2474,
+      "verification_time": 2.1475
+    },
+    {
+      "transaction_id": "T43",
+      "sequence": 43,
+      "interarrival_time": 1.2066,
+      "arrival_time": 49.5616,
+      "verification_time": 4.4383
+    },
+    {
+      "transaction_id": "T44",
+      "sequence": 44,
+      "interarrival_time": 1.1371,
+      "arrival_time": 50.7683,
+      "verification_time": 4.0107
+    },
+    {
+      "transaction_id": "T45",
+      "sequence": 45,
+      "interarrival_time": 0.6956,
+      "arrival_time": 51.9054,
+      "verification_time": 2.2059
+    },
+    {
+      "transaction_id": "T46",
+      "sequence": 46,
+      "interarrival_time": 0.9801,
+      "arrival_time": 52.6009,
+      "verification_time": 3.1146
+    },
+    {
+      "transaction_id": "T47",
+      "sequence": 47,
+      "interarrival_time": 1.0773,
+      "arrival_time": 53.581,
+      "verification_time": 5.6331
+    },
+    {
+      "transaction_id": "T48",
+      "sequence": 48,
+      "interarrival_time": 1.6464,
+      "arrival_time": 54.6582,
+      "verification_time": 2.9582
+    },
+    {
+      "transaction_id": "T49",
+      "sequence": 49,
+      "interarrival_time": 1.3789,
+      "arrival_time": 56.3046,
+      "verification_time": 2.5796
+    },
+    {
+      "transaction_id": "T50",
+      "sequence": 50,
+      "interarrival_time": 0.5889,
+      "arrival_time": 57.6835,
+      "verification_time": 3.9578
+    },
+    {
+      "transaction_id": "T51",
+      "sequence": 51,
+      "interarrival_time": 1.3715,
+      "arrival_time": 58.2724,
+      "verification_time": 5.9426
+    },
+    {
+      "transaction_id": "T52",
+      "sequence": 52,
+      "interarrival_time": 1.1056,
+      "arrival_time": 59.6439,
+      "verification_time": 2.9682
+    },
+    {
+      "transaction_id": "T53",
+      "sequence": 53,
+      "interarrival_time": 0.9962,
+      "arrival_time": 60.7495,
+      "verification_time": 4.6885
+    },
+    {
+      "transaction_id": "T54",
+      "sequence": 54,
+      "interarrival_time": 1.4794,
+      "arrival_time": 61.7456,
+      "verification_time": 5.0465
+    },
+    {
+      "transaction_id": "T55",
+      "sequence": 55,
+      "interarrival_time": 1.6366,
+      "arrival_time": 63.225,
+      "verification_time": 2.9506
+    },
+    {
+      "transaction_id": "T56",
+      "sequence": 56,
+      "interarrival_time": 1.5992,
+      "arrival_time": 64.8616,
+      "verification_time": 4.9129
+    },
+    {
+      "transaction_id": "T57",
+      "sequence": 57,
+      "interarrival_time": 0.9353,
+      "arrival_time": 66.4609,
+      "verification_time": 3.4711
+    },
+    {
+      "transaction_id": "T58",
+      "sequence": 58,
+      "interarrival_time": 1.134,
+      "arrival_time": 67.3962,
+      "verification_time": 4.5292
+    },
+    {
+      "transaction_id": "T59",
+      "sequence": 59,
+      "interarrival_time": 1.3742,
+      "arrival_time": 68.5302,
+      "verification_time": 4.5341
+    },
+    {
+      "transaction_id": "T60",
+      "sequence": 60,
+      "interarrival_time": 1.6158,
+      "arrival_time": 69.9044,
+      "verification_time": 4.1431
+    },
+    {
+      "transaction_id": "T61",
+      "sequence": 61,
+      "interarrival_time": 1.0703,
+      "arrival_time": 71.5203,
+      "verification_time": 2.3612
+    },
+    {
+      "transaction_id": "T62",
+      "sequence": 62,
+      "interarrival_time": 1.1804,
+      "arrival_time": 72.5906,
+      "verification_time": 5.3412
+    },
+    {
+      "transaction_id": "T63",
+      "sequence": 63,
+      "interarrival_time": 0.8351,
+      "arrival_time": 73.771,
+      "verification_time": 3.2831
+    },
+    {
+      "transaction_id": "T64",
+      "sequence": 64,
+      "interarrival_time": 0.8014,
+      "arrival_time": 74.6061,
+      "verification_time": 2.7461
+    },
+    {
+      "transaction_id": "T65",
+      "sequence": 65,
+      "interarrival_time": 1.5547,
+      "arrival_time": 75.4075,
+      "verification_time": 2.1631
+    },
+    {
+      "transaction_id": "T66",
+      "sequence": 66,
+      "interarrival_time": 1.7586,
+      "arrival_time": 76.9622,
+      "verification_time": 4.3636
+    },
+    {
+      "transaction_id": "T67",
+      "sequence": 67,
+      "interarrival_time": 1.223,
+      "arrival_time": 78.7208,
+      "verification_time": 4.7103
+    },
+    {
+      "transaction_id": "T68",
+      "sequence": 68,
+      "interarrival_time": 1.6263,
+      "arrival_time": 79.9438,
+      "verification_time": 2.0664
+    },
+    {
+      "transaction_id": "T69",
+      "sequence": 69,
+      "interarrival_time": 1.3856,
+      "arrival_time": 81.5701,
+      "verification_time": 4.0484
+    },
+    {
+      "transaction_id": "T70",
+      "sequence": 70,
+      "interarrival_time": 1.0081,
+      "arrival_time": 82.9557,
+      "verification_time": 2.906
+    },
+    {
+      "transaction_id": "T71",
+      "sequence": 71,
+      "interarrival_time": 1.3855,
+      "arrival_time": 83.9638,
+      "verification_time": 4.5807
+    },
+    {
+      "transaction_id": "T72",
+      "sequence": 72,
+      "interarrival_time": 1.8268,
+      "arrival_time": 85.3493,
+      "verification_time": 2.6975
+    },
+    {
+      "transaction_id": "T73",
+      "sequence": 73,
+      "interarrival_time": 1.2366,
+      "arrival_time": 87.1761,
+      "verification_time": 4.7638
+    },
+    {
+      "transaction_id": "T74",
+      "sequence": 74,
+      "interarrival_time": 1.8367,
+      "arrival_time": 88.4127,
+      "verification_time": 3.5469
+    },
+    {
+      "transaction_id": "T75",
+      "sequence": 75,
+      "interarrival_time": 0.2676,
+      "arrival_time": 90.2494,
+      "verification_time": 5.7469
+    },
+    {
+      "transaction_id": "T76",
+      "sequence": 76,
+      "interarrival_time": 1.5582,
+      "arrival_time": 90.517,
+      "verification_time": 2.5501
+    },
+    {
+      "transaction_id": "T77",
+      "sequence": 77,
+      "interarrival_time": 1.2826,
+      "arrival_time": 92.0752,
+      "verification_time": 3.3643
+    },
+    {
+      "transaction_id": "T78",
+      "sequence": 78,
+      "interarrival_time": 1.1379,
+      "arrival_time": 93.3579,
+      "verification_time": 2.4539
+    },
+    {
+      "transaction_id": "T79",
+      "sequence": 79,
+      "interarrival_time": 1.2844,
+      "arrival_time": 94.4957,
+      "verification_time": 5.6988
+    },
+    {
+      "transaction_id": "T80",
+      "sequence": 80,
+      "interarrival_time": 0.5047,
+      "arrival_time": 95.7801,
+      "verification_time": 5.5094
+    }
+  ],
+  "statistics": {
+    "total_transactions": 80,
+    "avg_interarrival": 1.20356125,
+    "min_interarrival": 0.2676,
+    "max_interarrival": 1.9446,
+    "avg_verification_time": 3.9364262500000002,
+    "min_verification_time": 2.0278,
+    "max_verification_time": 5.9426,
+    "total_simulation_time": 96.2849
+  }
+}
