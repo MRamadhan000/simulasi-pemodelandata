@@ -264,6 +264,69 @@ def json_to_dataframe(json_data):
     } for tx in transactions])
     return df
 
+def parse_custom_data_text(text_input):
+    """
+    Parse custom data dari format text.
+    
+    Format:
+    Transaction_ID,Interarrival_Time,Verification_Time
+    TXN001,2.5,3.2
+    TXN002,1.8,2.9
+    ...
+    
+    Returns: DataFrame atau error message
+    """
+    try:
+        lines = text_input.strip().split('\n')
+        if len(lines) < 2:
+            return None, "❌ Minimal 2 baris diperlukan (1 header + 1 data)"
+        
+        header = lines[0].split(',')
+        header = [h.strip() for h in header]
+        
+        expected_cols = {'Transaction_ID', 'Interarrival_Time', 'Verification_Time'}
+        actual_cols = set(header)
+        
+        if actual_cols != expected_cols:
+            return None, f"❌ Kolom harus: Transaction_ID, Interarrival_Time, Verification_Time\n(Diterima: {', '.join(header)})"
+        
+        rows = []
+        for i, line in enumerate(lines[1:], start=2):
+            if not line.strip():
+                continue
+            
+            values = line.split(',')
+            values = [v.strip() for v in values]
+            
+            if len(values) != 3:
+                return None, f"❌ Baris {i}: Harus ada 3 kolom, ditemukan {len(values)}"
+            
+            txn_id, ia_time, vf_time = values
+            
+            try:
+                ia_time = float(ia_time)
+                vf_time = float(vf_time)
+            except ValueError:
+                return None, f"❌ Baris {i}: Interarrival_Time dan Verification_Time harus angka (desimal)"
+            
+            if ia_time < 0 or vf_time < 0:
+                return None, f"❌ Baris {i}: Waktu tidak boleh negatif"
+            
+            rows.append({
+                'Transaction_ID': txn_id,
+                'Interarrival_Time': ia_time,
+                'Verification_Time': vf_time
+            })
+        
+        if not rows:
+            return None, "❌ Tidak ada data ditemukan (minimal 1 baris data)"
+        
+        df = pd.DataFrame(rows)
+        return df, None
+    
+    except Exception as e:
+        return None, f"❌ Error: {str(e)}"
+
 SCENARIO_LABELS = {
     'sepi': '🟢 Sepi (Low Traffic)',
     'normal': '🔵 Normal (Medium Traffic)',
@@ -453,7 +516,7 @@ elif page == "📊 Dataset":
         st.markdown('<div class="gradient-divider"></div>', unsafe_allow_html=True)
         
         # Data table
-        tab1, tab2 = st.tabs(["📋 Data Tabel", "📊 Distribusi"])
+        tab1, tab2, tab3 = st.tabs(["📋 Data Tabel", "📊 Distribusi", "➕ Data Custom"])
         
         with tab1:
             display_df = df.copy()
@@ -506,6 +569,125 @@ elif page == "📊 Dataset":
                 st.write(f"- Max: `{stats['max_verification_time']:.4f}` s")
                 st.write(f"- Mean: `{stats['avg_verification_time']:.4f}` s")
                 st.write(f"- Distribusi: `{meta['verification_time_distribution']['type']}` [{meta['verification_time_distribution']['min']}, {meta['verification_time_distribution']['max']}]")
+        
+        with tab3:
+            st.markdown("### ➕ Input Data Custom dalam Format Text")
+            
+            st.info("""
+            **📋 Kolom yang Diperlukan (3 kolom):**
+            1. **Transaction_ID** — ID unik transaksi (teks, contoh: TXN001, TX_2024_001)
+            2. **Interarrival_Time** — Waktu antar kedatangan (angka desimal dalam detik, contoh: 2.5)
+            3. **Verification_Time** — Waktu verifikasi (angka desimal dalam detik, contoh: 3.2)
+            """)
+            
+            st.markdown("**📝 Format Input:**")
+            st.code("""Transaction_ID,Interarrival_Time,Verification_Time
+TXN001,2.5,3.2
+TXN002,1.8,2.9
+TXN003,3.1,4.5
+TXN004,2.2,3.8""", language="text")
+            
+            st.markdown("**✅ Aturan Input:**")
+            st.markdown("""
+            - Baris pertama harus berisi header: `Transaction_ID,Interarrival_Time,Verification_Time`
+            - Setiap transaksi di baris baru
+            - Pisahkan dengan koma (`,`)
+            - Interarrival_Time & Verification_Time harus angka (boleh desimal)
+            - Tidak boleh ada nilai negatif
+            - Minimal 1 baris data (selain header)
+            """)
+            
+            st.markdown("---")
+            
+            custom_text = st.text_area(
+                "Masukkan Data Custom (format CSV):",
+                height=300,
+                placeholder="Transaction_ID,Interarrival_Time,Verification_Time\nTXN001,2.5,3.2\nTXN002,1.8,2.9",
+                label_visibility="collapsed"
+            )
+            
+            if st.button("✅ Proses Data Custom", type="primary"):
+                if custom_text.strip():
+                    df_custom, error = parse_custom_data_text(custom_text)
+                    
+                    if error:
+                        st.error(error)
+                    else:
+                        st.success("✅ Data berhasil diproses!")
+                        
+                        # Display statistics
+                        st.markdown("#### 📊 Statistik Data Custom")
+                        
+                        kpi_col1, kpi_col2, kpi_col3, kpi_col4 = st.columns(4)
+                        with kpi_col1:
+                            st.markdown(f"""
+                            <div class="kpi-card">
+                                <h3>Total Transaksi</h3>
+                                <h1>{len(df_custom)}</h1>
+                            </div>
+                            """, unsafe_allow_html=True)
+                        with kpi_col2:
+                            st.markdown(f"""
+                            <div class="kpi-card kpi-card-blue">
+                                <h3>Avg Interarrival</h3>
+                                <h1>{df_custom['Interarrival_Time'].mean():.2f}s</h1>
+                            </div>
+                            """, unsafe_allow_html=True)
+                        with kpi_col3:
+                            st.markdown(f"""
+                            <div class="kpi-card kpi-card-green">
+                                <h3>Avg Verif. Time</h3>
+                                <h1>{df_custom['Verification_Time'].mean():.2f}s</h1>
+                            </div>
+                            """, unsafe_allow_html=True)
+                        with kpi_col4:
+                            st.markdown(f"""
+                            <div class="kpi-card kpi-card-orange">
+                                <h3>Total Waktu</h3>
+                                <h1>{df_custom['Interarrival_Time'].sum():.1f}s</h1>
+                            </div>
+                            """, unsafe_allow_html=True)
+                        
+                        st.markdown("#### 📋 Tabel Data")
+                        display_custom_df = df_custom.copy()
+                        display_custom_df.index = display_custom_df.index + 1
+                        display_custom_df.index.name = "No"
+                        st.dataframe(display_custom_df, use_container_width=True)
+                        
+                        st.markdown("#### 📈 Visualisasi")
+                        viz_col1, viz_col2 = st.columns(2)
+                        with viz_col1:
+                            fig_ia_custom = px.histogram(
+                                df_custom, x='Interarrival_Time', nbins=max(5, len(df_custom)//3),
+                                title="Distribusi Interarrival Time",
+                                labels={'Interarrival_Time': 'Interarrival Time (detik)', 'count': 'Frekuensi'},
+                                color_discrete_sequence=['#667eea']
+                            )
+                            fig_ia_custom.update_layout(
+                                plot_bgcolor='rgba(0,0,0,0)',
+                                paper_bgcolor='rgba(0,0,0,0)',
+                                font=dict(size=12)
+                            )
+                            st.plotly_chart(fig_ia_custom, use_container_width=True)
+                        
+                        with viz_col2:
+                            fig_vt_custom = px.histogram(
+                                df_custom, x='Verification_Time', nbins=max(5, len(df_custom)//3),
+                                title="Distribusi Verification Time",
+                                labels={'Verification_Time': 'Verification Time (detik)', 'count': 'Frekuensi'},
+                                color_discrete_sequence=['#764ba2']
+                            )
+                            fig_vt_custom.update_layout(
+                                plot_bgcolor='rgba(0,0,0,0)',
+                                paper_bgcolor='rgba(0,0,0,0)',
+                                font=dict(size=12)
+                            )
+                            st.plotly_chart(fig_vt_custom, use_container_width=True)
+                        
+                        st.session_state.custom_df = df_custom
+                        st.success("💾 Data custom disimpan di session dan siap untuk simulasi!")
+                else:
+                    st.warning("⚠️ Silakan masukkan data terlebih dahulu")
 
 
 # ======================== SIMULATION PAGE ========================
@@ -518,15 +700,30 @@ elif page == "🚀 Simulation":
     # Input Parameters
     st.markdown("### ⚙️ Parameter Simulasi")
     
+    # Data source selection
+    data_source = st.radio(
+        "📊 Pilih Sumber Data:",
+        ["Skenario Preset", "Data Custom (dari tab Dataset)"],
+        horizontal=True,
+        label_visibility="collapsed"
+    )
+    
     col1, col2, col3 = st.columns(3)
     
+    selected_scenario = None
     with col1:
-        selected_scenario = st.selectbox(
-            "Skenario",
-            list(datasets.keys()),
-            format_func=lambda x: SCENARIO_LABELS.get(x, x),
-            index=1  # default Normal
-        )
+        if data_source == "Skenario Preset":
+            selected_scenario = st.selectbox(
+                "Skenario",
+                list(datasets.keys()),
+                format_func=lambda x: SCENARIO_LABELS.get(x, x),
+                index=1  # default Normal
+            )
+        else:
+            if hasattr(st.session_state, 'custom_df') and st.session_state.custom_df is not None:
+                st.success(f"✅ Data Custom: {len(st.session_state.custom_df)} transaksi")
+            else:
+                st.warning("⚠️ Belum ada data custom. Buat di tab Dataset → Data Custom")
     
     with col2:
         num_servers = st.slider("Jumlah Server", min_value=1, max_value=8, value=4)
@@ -546,179 +743,188 @@ elif page == "🚀 Simulation":
         run_simulation = st.button("🚀 Jalankan Simulasi", use_container_width=True, type="primary")
     
     if run_simulation:
-        data = datasets[selected_scenario]
-        df = json_to_dataframe(data)
-        
-        st.markdown('<div class="gradient-divider"></div>', unsafe_allow_html=True)
-        
-        # ---- SINGLE DES RUN (for real-time view) ----
-        st.markdown("### 🖥️ Simulasi Real-Time — Single DES Run")
-        
-        des = DESSimulation(num_servers=num_servers)
-        des_results = des.run_simulation(df)
-        
-        # Real-time server visualization
-        max_time = des_results['End_Time'].max()
-        
-        # Create a set of interesting time points
-        time_points = sorted(set(
-            list(des_results['Arrival_Time'].values) + 
-            list(des_results['Start_Time'].values) +
-            list(des_results['End_Time'].values)
-        ))
-        
-        # Pick ~15 time snapshots
-        if len(time_points) > 15:
-            step = len(time_points) // 15
-            time_points = time_points[::step]
-        
-        realtime_placeholder = st.empty()
-        time_slider_val = st.select_slider(
-            "⏱️ Waktu Simulasi (detik)",
-            options=[round(t, 2) for t in time_points],
-            value=round(time_points[len(time_points)//2], 2)
-        )
-        
-        # Show server state at selected time
-        server_status, queue = get_server_state_at_time(des_results, time_slider_val, num_servers)
-        
-        with realtime_placeholder.container():
-            st.markdown(f"**⏱️ Time = {time_slider_val:.2f}s**")
-            
-            server_cols = st.columns(num_servers)
-            for s_id in range(1, num_servers + 1):
-                with server_cols[s_id - 1]:
-                    status = server_status[s_id]
-                    if status['status'] == 'Busy':
-                        progress = status.get('progress', 0)
-                        st.markdown(f"""
-                        <div class="server-box server-busy">
-                            Server {s_id}<br>
-                            <strong>{status['transaction']}</strong><br>
-                            <small>{progress:.0f}%</small>
-                        </div>
-                        """, unsafe_allow_html=True)
-                    else:
-                        st.markdown(f"""
-                        <div class="server-box server-idle">
-                            Server {s_id}<br>
-                            <strong>Idle</strong>
-                        </div>
-                        """, unsafe_allow_html=True)
-            
-            # Queue display
-            if queue:
-                queue_html = "".join([f'<span class="queue-item">{tx}</span>' for tx in queue])
-                st.markdown(f"**📋 Antrian ({len(queue)}):** {queue_html}", unsafe_allow_html=True)
+        if data_source == "Data Custom (dari tab Dataset)":
+            if not hasattr(st.session_state, 'custom_df') or st.session_state.custom_df is None:
+                st.error("❌ Data custom tidak ditemukan. Silakan input data di tab Dataset → Data Custom terlebih dahulu")
+                df = None
             else:
-                st.markdown("**📋 Antrian: —** *(Kosong)*")
+                df = st.session_state.custom_df
+                st.info(f"📊 Menggunakan Data Custom: {len(df)} transaksi")
+        else:
+            data = datasets[selected_scenario]
+            df = json_to_dataframe(data)
         
-        st.markdown('<div class="gradient-divider"></div>', unsafe_allow_html=True)
-        
-        # ---- DES SINGLE RUN RESULTS TABLE ----
-        with st.expander("📋 Detail Hasil DES (Single Run)", expanded=False):
-            st.dataframe(des_results, use_container_width=True, height=300)
-        
-        st.markdown('<div class="gradient-divider"></div>', unsafe_allow_html=True)
-        
-        # ---- MONTE CARLO ----
-        st.markdown(f"### 🎲 Monte Carlo Simulation — {mc_iterations} Iterasi")
-        
-        progress_bar = st.progress(0)
-        status_text = st.empty()
-        
-        def update_progress(current, total):
-            progress_bar.progress(current / total)
-            status_text.text(f"⏳ Iterasi {current}/{total}...")
-        
-        mc = MonteCarloSimulation(num_iterations=mc_iterations, num_servers=num_servers)
-        
-        start_time = time.time()
-        mc.run_monte_carlo(df, vt_min=2, vt_max=6, progress_callback=update_progress)
-        elapsed = time.time() - start_time
-        
-        progress_bar.progress(1.0)
-        status_text.text(f"✅ Selesai dalam {elapsed:.2f} detik")
-        
-        aggregated, metrics_df = mc.get_aggregated_metrics()
-        
-        # Store results in session state
-        st.session_state['mc_results'] = {
-            'aggregated': aggregated,
-            'metrics_df': metrics_df,
-            'mc': mc,
-            'des_results': des_results,
-            'scenario': selected_scenario,
-            'num_servers': num_servers,
-            'mc_iterations': mc_iterations,
-            'elapsed': elapsed
-        }
-        
-        # ---- KPI CARDS ----
-        st.markdown("### 📊 Hasil Simulasi (KPI)")
-        
-        kpi1, kpi2, kpi3, kpi4 = st.columns(4)
-        with kpi1:
-            st.markdown(f"""
-            <div class="kpi-card">
-                <h3>Avg Waiting Time</h3>
-                <h1>{aggregated['Avg_Waiting_Time']:.2f}s</h1>
-            </div>
-            """, unsafe_allow_html=True)
-        with kpi2:
-            st.markdown(f"""
-            <div class="kpi-card kpi-card-blue">
-                <h3>Server Utilization</h3>
-                <h1>{aggregated['Avg_Server_Utilization']:.1f}%</h1>
-            </div>
-            """, unsafe_allow_html=True)
-        with kpi3:
-            st.markdown(f"""
-            <div class="kpi-card kpi-card-green">
-                <h3>Avg Queue Length</h3>
-                <h1>{aggregated['Avg_Queue_Length']:.2f}</h1>
-            </div>
-            """, unsafe_allow_html=True)
-        with kpi4:
-            st.markdown(f"""
-            <div class="kpi-card kpi-card-orange">
-                <h3>Completion Time</h3>
-                <h1>{aggregated['Avg_Completion_Time']:.1f}s</h1>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        st.markdown('<div class="gradient-divider"></div>', unsafe_allow_html=True)
-        
-        # ---- QUICK CHARTS ----
-        st.markdown("### 📈 Grafik Cepat")
-        
-        chart_col1, chart_col2 = st.columns(2)
-        
-        with chart_col1:
-            fig_wt = px.histogram(
-                metrics_df, x='Avg_Waiting_Time', nbins=30,
-                title="Histogram: Average Waiting Time (Monte Carlo)",
-                labels={'Avg_Waiting_Time': 'Avg Waiting Time (s)', 'count': 'Frekuensi'},
-                color_discrete_sequence=['#667eea']
+        if df is not None:
+            st.markdown('<div class="gradient-divider"></div>', unsafe_allow_html=True)
+            
+            # ---- SINGLE DES RUN (for real-time view) ----
+            st.markdown("### 🖥️ Simulasi Real-Time — Single DES Run")
+            
+            des = DESSimulation(num_servers=num_servers)
+            des_results = des.run_simulation(df)
+            
+            # Real-time server visualization
+            max_time = des_results['End_Time'].max()
+            
+            # Create a set of interesting time points
+            time_points = sorted(set(
+                list(des_results['Arrival_Time'].values) + 
+                list(des_results['Start_Time'].values) +
+                list(des_results['End_Time'].values)
+            ))
+            
+            # Pick ~15 time snapshots
+            if len(time_points) > 15:
+                step = len(time_points) // 15
+                time_points = time_points[::step]
+            
+            realtime_placeholder = st.empty()
+            time_slider_val = st.select_slider(
+                "⏱️ Waktu Simulasi (detik)",
+                options=[round(t, 2) for t in time_points],
+                value=round(time_points[len(time_points)//2], 2)
             )
-            fig_wt.add_vline(x=aggregated['Avg_Waiting_Time'], line_dash="dash", line_color="#f5576c",
-                             annotation_text=f"Mean: {aggregated['Avg_Waiting_Time']:.3f}s")
-            fig_wt.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
-            st.plotly_chart(fig_wt, use_container_width=True)
-        
-        with chart_col2:
-            fig_ct = px.histogram(
-                metrics_df, x='Total_Completion_Time', nbins=30,
-                title="Histogram: Total Completion Time (Monte Carlo)",
-                labels={'Total_Completion_Time': 'Completion Time (s)', 'count': 'Frekuensi'},
-                color_discrete_sequence=['#764ba2']
-            )
-            fig_ct.add_vline(x=aggregated['Avg_Completion_Time'], line_dash="dash", line_color="#f5576c",
-                             annotation_text=f"Mean: {aggregated['Avg_Completion_Time']:.1f}s")
-            fig_ct.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
-            st.plotly_chart(fig_ct, use_container_width=True)
-        
-        st.success(f"✅ Simulasi selesai! Buka tab **📈 Analytics** untuk visualisasi lengkap.")
+            
+            # Show server state at selected time
+            server_status, queue = get_server_state_at_time(des_results, time_slider_val, num_servers)
+            
+            with realtime_placeholder.container():
+                st.markdown(f"**⏱️ Time = {time_slider_val:.2f}s**")
+                
+                server_cols = st.columns(num_servers)
+                for s_id in range(1, num_servers + 1):
+                    with server_cols[s_id - 1]:
+                        status = server_status[s_id]
+                        if status['status'] == 'Busy':
+                            progress = status.get('progress', 0)
+                            st.markdown(f"""
+                            <div class="server-box server-busy">
+                                Server {s_id}<br>
+                                <strong>{status['transaction']}</strong><br>
+                                <small>{progress:.0f}%</small>
+                            </div>
+                            """, unsafe_allow_html=True)
+                        else:
+                            st.markdown(f"""
+                            <div class="server-box server-idle">
+                                Server {s_id}<br>
+                                <strong>Idle</strong>
+                            </div>
+                            """, unsafe_allow_html=True)
+                
+                # Queue display
+                if queue:
+                    queue_html = "".join([f'<span class="queue-item">{tx}</span>' for tx in queue])
+                    st.markdown(f"**📋 Antrian ({len(queue)}):** {queue_html}", unsafe_allow_html=True)
+                else:
+                    st.markdown("**📋 Antrian: —** *(Kosong)*")
+            
+            st.markdown('<div class="gradient-divider"></div>', unsafe_allow_html=True)
+            
+            # ---- DES SINGLE RUN RESULTS TABLE ----
+            with st.expander("📋 Detail Hasil DES (Single Run)", expanded=False):
+                st.dataframe(des_results, use_container_width=True, height=300)
+            
+            st.markdown('<div class="gradient-divider"></div>', unsafe_allow_html=True)
+            
+            # ---- MONTE CARLO ----
+            st.markdown(f"### 🎲 Monte Carlo Simulation — {mc_iterations} Iterasi")
+            
+            progress_bar = st.progress(0)
+            status_text = st.empty()
+            
+            def update_progress(current, total):
+                progress_bar.progress(current / total)
+                status_text.text(f"⏳ Iterasi {current}/{total}...")
+            
+            mc = MonteCarloSimulation(num_iterations=mc_iterations, num_servers=num_servers)
+            
+            start_time = time.time()
+            mc.run_monte_carlo(df, vt_min=2, vt_max=6, progress_callback=update_progress)
+            elapsed = time.time() - start_time
+            
+            progress_bar.progress(1.0)
+            status_text.text(f"✅ Selesai dalam {elapsed:.2f} detik")
+            
+            aggregated, metrics_df = mc.get_aggregated_metrics()
+            
+            # Store results in session state
+            st.session_state['mc_results'] = {
+                'aggregated': aggregated,
+                'metrics_df': metrics_df,
+                'mc': mc,
+                'des_results': des_results,
+                'scenario': selected_scenario,
+                'num_servers': num_servers,
+                'mc_iterations': mc_iterations,
+                'elapsed': elapsed
+            }
+            
+            # ---- KPI CARDS ----
+            st.markdown("### 📊 Hasil Simulasi (KPI)")
+            
+            kpi1, kpi2, kpi3, kpi4 = st.columns(4)
+            with kpi1:
+                st.markdown(f"""
+                <div class="kpi-card">
+                    <h3>Avg Waiting Time</h3>
+                    <h1>{aggregated['Avg_Waiting_Time']:.2f}s</h1>
+                </div>
+                """, unsafe_allow_html=True)
+            with kpi2:
+                st.markdown(f"""
+                <div class="kpi-card kpi-card-blue">
+                    <h3>Server Utilization</h3>
+                    <h1>{aggregated['Avg_Server_Utilization']:.1f}%</h1>
+                </div>
+                """, unsafe_allow_html=True)
+            with kpi3:
+                st.markdown(f"""
+                <div class="kpi-card kpi-card-green">
+                    <h3>Avg Queue Length</h3>
+                    <h1>{aggregated['Avg_Queue_Length']:.2f}</h1>
+                </div>
+                """, unsafe_allow_html=True)
+            with kpi4:
+                st.markdown(f"""
+                <div class="kpi-card kpi-card-orange">
+                    <h3>Completion Time</h3>
+                    <h1>{aggregated['Avg_Completion_Time']:.1f}s</h1>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            st.markdown('<div class="gradient-divider"></div>', unsafe_allow_html=True)
+            
+            # ---- QUICK CHARTS ----
+            st.markdown("### 📈 Grafik Cepat")
+            
+            chart_col1, chart_col2 = st.columns(2)
+            
+            with chart_col1:
+                fig_wt = px.histogram(
+                    metrics_df, x='Avg_Waiting_Time', nbins=30,
+                    title="Histogram: Average Waiting Time (Monte Carlo)",
+                    labels={'Avg_Waiting_Time': 'Avg Waiting Time (s)', 'count': 'Frekuensi'},
+                    color_discrete_sequence=['#667eea']
+                )
+                fig_wt.add_vline(x=aggregated['Avg_Waiting_Time'], line_dash="dash", line_color="#f5576c",
+                                 annotation_text=f"Mean: {aggregated['Avg_Waiting_Time']:.3f}s")
+                fig_wt.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
+                st.plotly_chart(fig_wt, use_container_width=True)
+            
+            with chart_col2:
+                fig_ct = px.histogram(
+                    metrics_df, x='Total_Completion_Time', nbins=30,
+                    title="Histogram: Total Completion Time (Monte Carlo)",
+                    labels={'Total_Completion_Time': 'Completion Time (s)', 'count': 'Frekuensi'},
+                    color_discrete_sequence=['#764ba2']
+                )
+                fig_ct.add_vline(x=aggregated['Avg_Completion_Time'], line_dash="dash", line_color="#f5576c",
+                                 annotation_text=f"Mean: {aggregated['Avg_Completion_Time']:.1f}s")
+                fig_ct.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
+                st.plotly_chart(fig_ct, use_container_width=True)
+            
+            st.success(f"✅ Simulasi selesai! Buka tab **📈 Analytics** untuk visualisasi lengkap.")
 
 
 # ======================== ANALYTICS PAGE ========================
@@ -738,7 +944,9 @@ elif page == "📈 Analytics":
     scenario = results['scenario']
     num_servers = results['num_servers']
     
-    st.markdown(f"**Skenario:** {SCENARIO_LABELS.get(scenario, scenario)} | "
+    scenario_label = SCENARIO_LABELS.get(scenario, "Data Custom") if scenario else "Data Custom"
+    
+    st.markdown(f"**Skenario:** {scenario_label} | "
                 f"**Server:** {num_servers} | "
                 f"**Iterasi MC:** {results['mc_iterations']} | "
                 f"**Waktu:** {results['elapsed']:.2f}s")
