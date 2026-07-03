@@ -1,0 +1,1818 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulasi Verifikasi Pembayaran Digital — DES + Monte Carlo</title>
+    <meta name="description" content="Dashboard simulasi verifikasi pembayaran digital menggunakan Discrete Event Simulation (DES) dan Monte Carlo. Analisis pengaruh kepadatan transaksi terhadap kinerja server.">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <!-- Plotly.js CDN -->
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    
+    <style>
+        /* ===== CSS RESET & BASE ===== */
+        *, *::before, *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #0a0a1a;
+            --bg-secondary: #12122a;
+            --bg-card: rgba(255, 255, 255, 0.04);
+            --bg-card-hover: rgba(255, 255, 255, 0.07);
+            --border-subtle: rgba(102, 126, 234, 0.15);
+            --border-medium: rgba(102, 126, 234, 0.3);
+            --text-primary: #e8eaf6;
+            --text-secondary: #a0a4c4;
+            --text-muted: #6b6f94;
+            --accent-1: #667eea;
+            --accent-2: #764ba2;
+            --accent-3: #f093fb;
+            --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --gradient-blue: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            --gradient-green: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+            --gradient-orange: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+            --gradient-red: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            --gradient-sidebar: linear-gradient(180deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+            --shadow-glow: 0 8px 32px rgba(102, 126, 234, 0.2);
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --radius-xl: 20px;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            overflow-x: hidden;
+        }
+
+        /* ===== SCROLLBAR ===== */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(102, 126, 234, 0.3); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(102, 126, 234, 0.5); }
+
+        /* ===== SIDEBAR ===== */
+        .sidebar {
+            width: 260px;
+            min-height: 100vh;
+            background: var(--gradient-sidebar);
+            padding: 32px 20px;
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 100;
+            border-right: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .sidebar-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 8px;
+        }
+
+        .gradient-divider {
+            height: 3px;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+            border-radius: 3px;
+            margin: 16px 0;
+        }
+
+        .nav-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .nav-item {
+            padding: 12px 16px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: var(--transition);
+            color: #c0c4e0;
+            font-size: 14px;
+            font-weight: 500;
+            user-select: none;
+        }
+        .nav-item:hover {
+            background: rgba(102, 126, 234, 0.15);
+            color: #fff;
+        }
+        .nav-item.active {
+            background: var(--gradient-primary);
+            color: #fff;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .sidebar-footer {
+            margin-top: auto;
+            text-align: center;
+            font-size: 11px;
+            color: rgba(255,255,255,0.35);
+            line-height: 1.8;
+        }
+
+        /* ===== MAIN CONTENT ===== */
+        .main-content {
+            margin-left: 260px;
+            flex: 1;
+            padding: 32px 40px;
+            min-height: 100vh;
+        }
+
+        /* ===== PAGE SECTIONS ===== */
+        .page-section {
+            display: none;
+            animation: fadeIn 0.4s ease;
+        }
+        .page-section.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ===== SECTION HEADER ===== */
+        .section-header {
+            font-size: 28px;
+            font-weight: 800;
+            background: var(--gradient-primary);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 4px;
+        }
+
+        /* ===== HERO BANNER ===== */
+        .hero-banner {
+            background: var(--gradient-sidebar);
+            border-radius: var(--radius-xl);
+            padding: 48px 40px;
+            text-align: center;
+            margin-bottom: 32px;
+            box-shadow: 0 12px 40px rgba(15, 12, 41, 0.5);
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        .hero-banner h1 {
+            font-size: 32px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #667eea, #764ba2, #f093fb);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 8px;
+        }
+        .hero-banner p {
+            color: rgba(255,255,255,0.7);
+            font-size: 15px;
+            margin: 4px 0;
+        }
+
+        /* ===== CARDS ===== */
+        .model-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            margin: 12px 0;
+            transition: var(--transition);
+        }
+        .model-card:hover {
+            background: var(--bg-card-hover);
+            border-color: var(--border-medium);
+        }
+        .model-card h3 {
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            color: var(--text-primary);
+        }
+        .model-card h4 {
+            font-size: 15px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        .model-card ul, .model-card ol {
+            padding-left: 20px;
+            color: var(--text-secondary);
+            line-height: 1.8;
+            font-size: 14px;
+        }
+        .model-card p {
+            color: var(--text-secondary);
+            font-size: 14px;
+            line-height: 1.7;
+        }
+        .model-card table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 12px;
+        }
+        .model-card th {
+            text-align: left;
+            padding: 10px 8px;
+            font-size: 13px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 2px solid var(--border-medium);
+        }
+        .model-card td {
+            padding: 10px 8px;
+            font-size: 14px;
+            color: var(--text-secondary);
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        /* ===== KPI CARDS ===== */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin: 16px 0;
+        }
+        .kpi-card {
+            background: var(--gradient-primary);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            text-align: center;
+            color: #fff;
+            box-shadow: 0 8px 32px rgba(102, 126, 234, 0.3);
+            transition: var(--transition);
+        }
+        .kpi-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 40px rgba(102, 126, 234, 0.5);
+        }
+        .kpi-card .kpi-label {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            opacity: 0.85;
+        }
+        .kpi-card .kpi-value {
+            font-size: 32px;
+            font-weight: 800;
+            margin-top: 6px;
+        }
+        .kpi-card.blue { background: var(--gradient-blue); box-shadow: 0 8px 32px rgba(79,172,254,0.3); }
+        .kpi-card.green { background: var(--gradient-green); color: #1a1a2e; box-shadow: 0 8px 32px rgba(67,233,123,0.3); }
+        .kpi-card.green .kpi-label { color: #1a1a2e; }
+        .kpi-card.orange { background: var(--gradient-orange); color: #1a1a2e; box-shadow: 0 8px 32px rgba(250,112,154,0.3); }
+        .kpi-card.orange .kpi-label { color: #1a1a2e; }
+        .kpi-card.red { background: var(--gradient-red); box-shadow: 0 8px 32px rgba(240,147,251,0.3); }
+
+        /* ===== GRID LAYOUTS ===== */
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+        .grid-3 {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 24px;
+        }
+
+        /* ===== EQUATION BLOCK ===== */
+        .equation-block {
+            background: rgba(102, 126, 234, 0.06);
+            border-left: 4px solid var(--accent-1);
+            border-radius: 0 var(--radius-md) var(--radius-md) 0;
+            padding: 20px 24px;
+            margin: 16px 0;
+        }
+        .equation-block h4 {
+            color: var(--text-primary);
+            font-size: 15px;
+            margin-bottom: 8px;
+        }
+        .equation-block .formula {
+            font-size: 18px;
+            font-family: 'Georgia', serif;
+            color: #c0c8ff;
+            font-style: italic;
+            margin: 8px 0;
+        }
+        .equation-block p {
+            font-size: 13px;
+            color: var(--text-secondary);
+            line-height: 1.7;
+        }
+        .equation-block ul {
+            font-size: 13px;
+            color: var(--text-secondary);
+            padding-left: 20px;
+            line-height: 1.8;
+        }
+
+        /* ===== STATE FLOW ===== */
+        .state-flow {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            flex-wrap: wrap;
+            margin: 16px 0;
+        }
+        .state-node {
+            padding: 16px 32px;
+            border-radius: var(--radius-md);
+            font-weight: 700;
+            font-size: 15px;
+        }
+        .state-node.waiting { background: linear-gradient(135deg, #ffecd2, #fcb69f); color: #1a1a2e; }
+        .state-node.verifying { background: var(--gradient-primary); color: #fff; }
+        .state-node.completed { background: var(--gradient-green); color: #1a1a2e; }
+        .state-arrow { font-size: 28px; color: var(--accent-1); }
+
+        /* ===== FORM CONTROLS ===== */
+        .form-group {
+            margin-bottom: 16px;
+        }
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        select, input[type="number"], input[type="text"] {
+            width: 100%;
+            padding: 10px 14px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-medium);
+            border-radius: var(--radius-sm);
+            color: var(--text-primary);
+            font-family: 'Inter', sans-serif;
+            font-size: 14px;
+            transition: var(--transition);
+            outline: none;
+        }
+        select:focus, input:focus {
+            border-color: var(--accent-1);
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+        }
+        select option {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+        }
+
+        textarea {
+            width: 100%;
+            padding: 12px 14px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-medium);
+            border-radius: var(--radius-sm);
+            color: var(--text-primary);
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 13px;
+            resize: vertical;
+            outline: none;
+            transition: var(--transition);
+            line-height: 1.6;
+        }
+        textarea:focus {
+            border-color: var(--accent-1);
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+        }
+
+        /* ===== BUTTONS ===== */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 28px;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-family: 'Inter', sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        .btn-primary {
+            background: var(--gradient-primary);
+            color: #fff;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.5);
+        }
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .btn-secondary {
+            background: var(--bg-card);
+            color: var(--text-primary);
+            border: 1px solid var(--border-medium);
+        }
+        .btn-secondary:hover {
+            background: var(--bg-card-hover);
+        }
+        .btn-lg {
+            padding: 14px 48px;
+            font-size: 16px;
+            border-radius: var(--radius-md);
+        }
+
+        /* ===== TABS ===== */
+        .tabs {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid var(--border-subtle);
+            padding-bottom: 0;
+        }
+        .tab-btn {
+            padding: 10px 20px;
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            font-family: 'Inter', sans-serif;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+            transition: var(--transition);
+        }
+        .tab-btn:hover { color: var(--text-primary); }
+        .tab-btn.active {
+            color: var(--accent-1);
+            border-bottom-color: var(--accent-1);
+        }
+        .tab-content { display: none; animation: fadeIn 0.3s ease; }
+        .tab-content.active { display: block; }
+
+        /* ===== DATA TABLE ===== */
+        .data-table-wrapper {
+            overflow-x: auto;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border-subtle);
+            max-height: 450px;
+            overflow-y: auto;
+        }
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        .data-table thead {
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+        .data-table th {
+            background: rgba(102, 126, 234, 0.12);
+            color: var(--text-primary);
+            padding: 12px 16px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 2px solid var(--border-medium);
+        }
+        .data-table td {
+            padding: 10px 16px;
+            color: var(--text-secondary);
+            border-bottom: 1px solid var(--border-subtle);
+        }
+        .data-table tr:hover td {
+            background: rgba(102, 126, 234, 0.04);
+        }
+
+        /* ===== RADIO GROUP ===== */
+        .radio-group {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+        .radio-option {
+            padding: 8px 18px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border-medium);
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            transition: var(--transition);
+            user-select: none;
+        }
+        .radio-option:hover { border-color: var(--accent-1); color: var(--text-primary); }
+        .radio-option.active {
+            background: var(--gradient-primary);
+            border-color: transparent;
+            color: #fff;
+        }
+
+        /* ===== INFO / WARNING BOXES ===== */
+        .info-box {
+            background: rgba(79, 172, 254, 0.08);
+            border: 1px solid rgba(79, 172, 254, 0.2);
+            border-radius: var(--radius-sm);
+            padding: 14px 18px;
+            font-size: 13px;
+            color: #8bc4f6;
+            margin: 8px 0;
+            line-height: 1.6;
+        }
+        .warning-box {
+            background: rgba(250, 112, 154, 0.08);
+            border: 1px solid rgba(250, 112, 154, 0.2);
+            border-radius: var(--radius-sm);
+            padding: 14px 18px;
+            font-size: 13px;
+            color: #f5a0b6;
+            margin: 8px 0;
+        }
+        .success-box {
+            background: rgba(67, 233, 123, 0.08);
+            border: 1px solid rgba(67, 233, 123, 0.2);
+            border-radius: var(--radius-sm);
+            padding: 14px 18px;
+            font-size: 13px;
+            color: #7ae6a0;
+            margin: 8px 0;
+        }
+
+        /* ===== PROGRESS BAR ===== */
+        .progress-wrapper {
+            margin: 16px 0;
+            display: none;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: var(--bg-card);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background: var(--gradient-primary);
+            border-radius: 4px;
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+        .progress-text {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 6px;
+        }
+
+        /* ===== SERVER STATUS BOXES ===== */
+        .server-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 12px;
+            margin: 12px 0;
+        }
+        .server-box {
+            border-radius: var(--radius-md);
+            padding: 16px;
+            text-align: center;
+            font-weight: 600;
+            font-size: 13px;
+            transition: var(--transition);
+        }
+        .server-busy {
+            background: linear-gradient(135deg, #f5576c, #ff6b6b);
+            color: #fff;
+            box-shadow: 0 4px 15px rgba(245, 87, 108, 0.4);
+            animation: pulse-busy 2s infinite;
+        }
+        .server-idle {
+            background: var(--gradient-green);
+            color: #1a1a2e;
+            box-shadow: 0 4px 15px rgba(67, 233, 123, 0.3);
+        }
+        @keyframes pulse-busy {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.85; }
+        }
+
+        .queue-item {
+            display: inline-block;
+            background: linear-gradient(135deg, #ffecd2, #fcb69f);
+            border-radius: 6px;
+            padding: 4px 12px;
+            margin: 3px;
+            font-weight: 600;
+            color: #1a1a2e;
+            font-size: 12px;
+        }
+
+        /* ===== SLIDER ===== */
+        .range-slider {
+            width: 100%;
+            -webkit-appearance: none;
+            appearance: none;
+            height: 6px;
+            background: var(--bg-card);
+            border-radius: 3px;
+            outline: none;
+            margin: 12px 0;
+        }
+        .range-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--gradient-primary);
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.5);
+        }
+
+        /* ===== EXPANDER ===== */
+        .expander {
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            margin: 16px 0;
+            overflow: hidden;
+        }
+        .expander-header {
+            padding: 14px 18px;
+            background: var(--bg-card);
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: var(--transition);
+        }
+        .expander-header:hover { background: var(--bg-card-hover); }
+        .expander-header .arrow { transition: transform 0.3s ease; }
+        .expander-header.open .arrow { transform: rotate(180deg); }
+        .expander-body {
+            display: none;
+            padding: 18px;
+            border-top: 1px solid var(--border-subtle);
+        }
+        .expander-body.open { display: block; }
+
+        /* ===== CODE BLOCK ===== */
+        .code-block {
+            background: rgba(0,0,0,0.3);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-sm);
+            padding: 14px 18px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 13px;
+            color: #c0c8ff;
+            line-height: 1.6;
+            overflow-x: auto;
+            white-space: pre;
+        }
+
+        /* ===== CHART CONTAINER ===== */
+        .chart-container {
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            margin: 12px 0;
+        }
+
+        /* ===== LOADING OVERLAY ===== */
+        .loading-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(10, 10, 26, 0.85);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            backdrop-filter: blur(4px);
+        }
+        .loading-overlay.active { display: flex; }
+        .loading-spinner {
+            text-align: center;
+        }
+        .loading-spinner .spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid rgba(102, 126, 234, 0.2);
+            border-top: 4px solid var(--accent-1);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 16px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .loading-spinner p {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 900px) {
+            .sidebar { width: 220px; padding: 24px 14px; }
+            .main-content { margin-left: 220px; padding: 24px 20px; }
+            .grid-2, .grid-3 { grid-template-columns: 1fr; }
+            .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 640px) {
+            .sidebar {
+                position: fixed;
+                transform: translateX(-100%);
+                width: 260px;
+                transition: transform 0.3s ease;
+            }
+            .sidebar.open { transform: translateX(0); }
+            .main-content { margin-left: 0; padding: 20px 16px; }
+            .mobile-toggle {
+                display: block !important;
+                position: fixed;
+                top: 12px;
+                left: 12px;
+                z-index: 101;
+                background: var(--gradient-primary);
+                border: none;
+                border-radius: 8px;
+                padding: 10px 14px;
+                color: #fff;
+                font-size: 18px;
+                cursor: pointer;
+            }
+            .kpi-grid { grid-template-columns: 1fr 1fr; }
+        }
+
+        .mobile-toggle { display: none; }
+
+        h3 { font-size: 18px; font-weight: 700; margin: 24px 0 12px; }
+    </style>
+</head>
+<body>
+
+<!-- Mobile toggle -->
+<button class="mobile-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')">☰</button>
+
+<!-- Loading Overlay -->
+<div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-spinner">
+        <div class="spinner"></div>
+        <p id="loadingText">Menjalankan simulasi...</p>
+    </div>
+</div>
+
+<!-- ===== SIDEBAR ===== -->
+<nav class="sidebar">
+    <div class="sidebar-title">💳 Dashboard Simulasi</div>
+    <div class="gradient-divider"></div>
+    <ul class="nav-list">
+        <li class="nav-item active" data-page="home">🏠 Home</li>
+        <li class="nav-item" data-page="dataset">📊 Dataset</li>
+        <li class="nav-item" data-page="simulation">🚀 Simulation</li>
+        <li class="nav-item" data-page="analytics">📈 Analytics</li>
+        <li class="nav-item" data-page="about">📐 About Model</li>
+    </ul>
+    <div class="gradient-divider"></div>
+    <div class="sidebar-footer">
+        <p>PDSD Final Project</p>
+        <p>DES + Monte Carlo</p>
+        <p style="margin-top:8px;">© 2026</p>
+    </div>
+</nav>
+
+<!-- ===== MAIN CONTENT ===== -->
+<main class="main-content">
+
+    <!-- ========== HOME ========== -->
+    <section class="page-section active" id="page-home">
+        <div class="hero-banner">
+            <h1>💳 Simulasi Verifikasi Pembayaran Digital</h1>
+            <p>Discrete Event Simulation (DES) + Monte Carlo Simulation</p>
+            <p style="margin-top:16px; font-size:13px;">Menganalisis Pengaruh Kepadatan Transaksi terhadap Kinerja Server Verifikasi</p>
+        </div>
+
+        <div class="grid-2">
+            <div>
+                <div class="model-card">
+                    <h3>🔬 Model Simulasi</h3>
+                    <ul>
+                        <li><strong>Discrete Event Simulation (DES)</strong><br>Mensimulasikan proses verifikasi transaksi dengan event-driven approach</li>
+                        <li><strong>Monte Carlo Simulation</strong><br>Menjalankan DES berulang kali (1000x) dengan randomized verification time untuk menangkap ketidakpastian</li>
+                    </ul>
+                </div>
+                <div class="model-card">
+                    <h3>🖥️ Konfigurasi Server</h3>
+                    <ul>
+                        <li><strong>4 Server Verifikasi</strong> (paralel, identik)</li>
+                        <li>Strategi: <strong>Earliest Available Server</strong></li>
+                        <li>Scheduling: <strong>First-Come-First-Served</strong> (FCFS)</li>
+                    </ul>
+                </div>
+            </div>
+            <div>
+                <div class="model-card">
+                    <h3>📋 4 Skenario Simulasi</h3>
+                    <table>
+                        <tr><th>Skenario</th><th style="text-align:center">Transaksi</th><th style="text-align:center">Avg IA</th></tr>
+                        <tr><td>🟢 Sepi</td><td style="text-align:center">20</td><td style="text-align:center">5.0 s</td></tr>
+                        <tr><td>🔵 Normal</td><td style="text-align:center">40</td><td style="text-align:center">2.5 s</td></tr>
+                        <tr><td>🟠 Padat</td><td style="text-align:center">80</td><td style="text-align:center">1.25 s</td></tr>
+                        <tr><td>🔴 Sangat Padat</td><td style="text-align:center">160</td><td style="text-align:center">0.625 s</td></tr>
+                    </table>
+                </div>
+                <div class="model-card">
+                    <h3>📊 Metrik yang Diukur</h3>
+                    <ul>
+                        <li>⏱️ <strong>Average Waiting Time</strong></li>
+                        <li>📈 <strong>Server Utilization</strong></li>
+                        <li>📏 <strong>Average Queue Length</strong></li>
+                        <li>⏲️ <strong>Total Completion Time</strong></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="gradient-divider"></div>
+
+        <h3>🔍 Pertanyaan Penelitian</h3>
+        <div class="info-box">
+            <strong>Q1.</strong> Bagaimana pengaruh kepadatan transaksi terhadap waktu tunggu verifikasi?
+        </div>
+        <div class="info-box">
+            <strong>Q2.</strong> Bagaimana pengaruh kepadatan transaksi terhadap utilisasi server?
+        </div>
+        <div class="info-box">
+            <strong>Q3.</strong> Apakah 4 server verifikasi mampu menangani seluruh skenario transaksi?
+        </div>
+        <div class="info-box">
+            <strong>Q4.</strong> Pada kondisi apa antrean transaksi mulai meningkat secara signifikan?
+        </div>
+    </section>
+
+
+    <!-- ========== DATASET ========== -->
+    <section class="page-section" id="page-dataset">
+        <p class="section-header">📊 Dataset Transaksi</p>
+        <div class="gradient-divider"></div>
+
+        <div class="form-group">
+            <label>Pilih Skenario</label>
+            <select id="datasetScenarioSelect">
+                <option value="sepi">🟢 Sepi (Low Traffic)</option>
+                <option value="normal" selected>🔵 Normal (Medium Traffic)</option>
+                <option value="padat">🟠 Padat (High Traffic)</option>
+                <option value="sangat_padat">🔴 Sangat Padat (Very High Traffic)</option>
+            </select>
+        </div>
+
+        <div id="datasetInfo"></div>
+
+        <div class="gradient-divider"></div>
+
+        <!-- Tabs -->
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="data-table-tab">📋 Data Tabel</button>
+            <button class="tab-btn" data-tab="data-dist-tab">📊 Distribusi</button>
+            <button class="tab-btn" data-tab="data-custom-tab">➕ Data Custom</button>
+        </div>
+
+        <div class="tab-content active" id="data-table-tab">
+            <div class="data-table-wrapper" id="datasetTableWrapper"></div>
+        </div>
+
+        <div class="tab-content" id="data-dist-tab">
+            <div class="grid-2">
+                <div class="chart-container" id="chartDistIA"></div>
+                <div class="chart-container" id="chartDistVT"></div>
+            </div>
+            <div id="datasetStats"></div>
+        </div>
+
+        <div class="tab-content" id="data-custom-tab">
+            <h3>➕ Input Data Custom dalam Format Text</h3>
+            <div class="info-box">
+                <strong>📋 Kolom yang Diperlukan (3 kolom):</strong><br>
+                1. <strong>Transaction_ID</strong> — ID unik transaksi (teks, contoh: TXN001)<br>
+                2. <strong>Interarrival_Time</strong> — Waktu antar kedatangan (angka desimal dalam detik)<br>
+                3. <strong>Verification_Time</strong> — Waktu verifikasi (angka desimal dalam detik)
+            </div>
+            <p style="font-weight:600; margin:12px 0 8px;">📝 Format Input:</p>
+            <div class="code-block">Transaction_ID,Interarrival_Time,Verification_Time
+TXN001,2.5,3.2
+TXN002,1.8,2.9
+TXN003,3.1,4.5
+TXN004,2.2,3.8</div>
+            <p style="font-weight:600; margin:16px 0 8px;">✅ Aturan Input:</p>
+            <ul style="font-size:13px; color:var(--text-secondary); padding-left:20px; line-height:1.8; margin-bottom:16px;">
+                <li>Baris pertama harus berisi header</li>
+                <li>Setiap transaksi di baris baru, pisahkan dengan koma (,)</li>
+                <li>Interarrival_Time & Verification_Time harus angka (boleh desimal)</li>
+                <li>Tidak boleh ada nilai negatif</li>
+            </ul>
+            <textarea id="customDataInput" rows="10" placeholder="Transaction_ID,Interarrival_Time,Verification_Time&#10;TXN001,2.5,3.2&#10;TXN002,1.8,2.9"></textarea>
+            <div style="margin-top:12px;">
+                <button class="btn btn-primary" onclick="processCustomData()">✅ Proses Data Custom</button>
+            </div>
+            <div id="customDataResult"></div>
+        </div>
+    </section>
+
+
+    <!-- ========== SIMULATION ========== -->
+    <section class="page-section" id="page-simulation">
+        <p class="section-header">🚀 Jalankan Simulasi</p>
+        <div class="gradient-divider"></div>
+
+        <h3>⚙️ Parameter Simulasi</h3>
+
+        <div class="radio-group" id="dataSourceRadio">
+            <div class="radio-option active" data-value="preset" onclick="setDataSource('preset')">Skenario Preset</div>
+            <div class="radio-option" data-value="custom" onclick="setDataSource('custom')">Data Custom</div>
+        </div>
+
+        <div class="grid-3">
+            <div class="form-group" id="simScenarioGroup">
+                <label>Skenario</label>
+                <select id="simScenarioSelect">
+                    <option value="sepi">🟢 Sepi</option>
+                    <option value="normal" selected>🔵 Normal</option>
+                    <option value="padat">🟠 Padat</option>
+                    <option value="sangat_padat">🔴 Sangat Padat</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Jumlah Server</label>
+                <input type="number" id="numServersInput" value="4" min="1" max="8">
+            </div>
+            <div class="form-group">
+                <label>Iterasi Monte Carlo</label>
+                <select id="mcIterationsSelect">
+                    <option value="10">10</option>
+                    <option value="50">50</option>
+                    <option value="100" selected>100</option>
+                    <option value="200">200</option>
+                    <option value="500">500</option>
+                </select>
+            </div>
+        </div>
+
+        <div id="customDataStatus"></div>
+
+        <div class="gradient-divider"></div>
+
+        <div style="text-align:center;">
+            <button class="btn btn-primary btn-lg" id="runSimBtn" onclick="runSimulation()">🚀 Jalankan Simulasi</button>
+        </div>
+
+        <div class="progress-wrapper" id="simProgress">
+            <div class="progress-bar"><div class="progress-fill" id="simProgressFill"></div></div>
+            <p class="progress-text" id="simProgressText">Mempersiapkan...</p>
+        </div>
+
+        <div id="simResults"></div>
+    </section>
+
+
+    <!-- ========== ANALYTICS ========== -->
+    <section class="page-section" id="page-analytics">
+        <p class="section-header">📈 Analitik & Visualisasi</p>
+        <div class="gradient-divider"></div>
+        <div id="analyticsContent">
+            <div class="warning-box">⚠️ Belum ada hasil simulasi. Silakan jalankan simulasi terlebih dahulu di tab <strong>🚀 Simulation</strong>.</div>
+        </div>
+    </section>
+
+
+    <!-- ========== ABOUT MODEL ========== -->
+    <section class="page-section" id="page-about">
+        <p class="section-header">📐 Tentang Model Simulasi</p>
+        <div class="gradient-divider"></div>
+
+        <h3>🔷 Entitas Simulasi</h3>
+        <div class="model-card">
+            <table>
+                <tr><th style="width:30%">Entitas</th><th>Deskripsi</th></tr>
+                <tr><td><strong>Transaction</strong></td><td>Entitas utama yang merepresentasikan transaksi pembayaran digital yang masuk ke sistem untuk diverifikasi</td></tr>
+                <tr><td><strong>Verification Server</strong></td><td>Server yang memproses verifikasi transaksi. Sistem memiliki 4 server identik yang bekerja paralel</td></tr>
+                <tr><td><strong>Queue</strong></td><td>Antrian FIFO (First-In-First-Out) yang menampung transaksi saat semua server sibuk</td></tr>
+            </table>
+        </div>
+
+        <div class="gradient-divider"></div>
+
+        <h3>🔄 State Transition</h3>
+        <div class="model-card" style="text-align:center;">
+            <div class="state-flow">
+                <div class="state-node waiting">⏳ Waiting</div>
+                <div class="state-arrow">→</div>
+                <div class="state-node verifying">🔄 Verifying</div>
+                <div class="state-arrow">→</div>
+                <div class="state-node completed">✅ Completed</div>
+            </div>
+            <p style="margin-top:16px; font-size:13px; color:var(--text-muted);">
+                Transaksi berpindah dari Waiting ke Verifying ketika ada server tersedia,<br>
+                dan dari Verifying ke Completed setelah durasi verifikasi selesai.
+            </p>
+        </div>
+
+        <div class="gradient-divider"></div>
+
+        <h3>⚡ Event Types</h3>
+        <div class="grid-3">
+            <div class="model-card" style="text-align:center;">
+                <h3>📥 Arrival</h3>
+                <p>Transaksi baru tiba di sistem berdasarkan Interarrival Time</p>
+            </div>
+            <div class="model-card" style="text-align:center;">
+                <h3>▶️ Service Start</h3>
+                <p>Transaksi mulai diproses di server yang tersedia</p>
+            </div>
+            <div class="model-card" style="text-align:center;">
+                <h3>✅ Service End</h3>
+                <p>Verifikasi selesai, server dibebaskan</p>
+            </div>
+        </div>
+
+        <div class="gradient-divider"></div>
+
+        <h3>📐 Persamaan Matematis</h3>
+
+        <div class="equation-block">
+            <h4>1. Arrival Time (Waktu Kedatangan)</h4>
+            <p class="formula">Arrival<sub>i</sub> = Arrival<sub>i-1</sub> + IA<sub>i</sub></p>
+            <p>Dimana IA<sub>i</sub> adalah Interarrival Time transaksi ke-i. Arrival<sub>1</sub> = 0.</p>
+        </div>
+        <div class="equation-block">
+            <h4>2. Start Time (Waktu Mulai Verifikasi)</h4>
+            <p class="formula">Start<sub>i</sub> = max(Arrival<sub>i</sub>, AvailableServer<sub>j</sub>)</p>
+            <p>Transaksi mulai diverifikasi pada waktu maksimal antara kedatangan dan waktu server j tersedia.</p>
+            <ul>
+                <li>Jika server tersedia lebih awal: mulai = waktu kedatangan</li>
+                <li>Jika server sibuk: mulai = waktu server bebas (harus menunggu)</li>
+            </ul>
+        </div>
+        <div class="equation-block">
+            <h4>3. End Time (Waktu Selesai Verifikasi)</h4>
+            <p class="formula">End<sub>i</sub> = Start<sub>i</sub> + VT<sub>i</sub></p>
+            <p>Transaksi selesai pada waktu mulai ditambah durasi verifikasi (VT ~ Uniform[2, 6] detik).</p>
+        </div>
+        <div class="equation-block">
+            <h4>4. Waiting Time (Waktu Tunggu)</h4>
+            <p class="formula">Waiting<sub>i</sub> = Start<sub>i</sub> - Arrival<sub>i</sub></p>
+            <p>Lama transaksi menunggu di antrian sebelum diproses.</p>
+            <ul>
+                <li>Waiting<sub>i</sub> = 0 → transaksi langsung diproses (server tersedia)</li>
+                <li>Waiting<sub>i</sub> &gt; 0 → transaksi harus menunggu (congestion)</li>
+            </ul>
+        </div>
+        <div class="equation-block">
+            <h4>5. Queue Length Dynamics</h4>
+            <p class="formula">Queue(t+1) = Queue(t) + Arrival(t) - Departure(t)</p>
+            <p>Panjang antrian berubah berdasarkan kedatangan (+1) dan keberangkatan (-1) transaksi.</p>
+        </div>
+        <div class="equation-block">
+            <h4>6. Server Utilization</h4>
+            <p class="formula">Utilization = Σ VT<sub>i</sub> / (N<sub>server</sub> × T<sub>total</sub>) × 100%</p>
+            <p>Persentase waktu server digunakan dibandingkan total waktu simulasi × jumlah server.</p>
+        </div>
+
+        <div class="gradient-divider"></div>
+
+        <h3>🖥️ Server Allocation Strategy</h3>
+        <div class="model-card">
+            <h4>Earliest Available Server (EAS) + FCFS</h4>
+            <ol>
+                <li>Ketika transaksi tiba, sistem mencari server dengan <code style="color:#c0c8ff;">available_until</code> paling awal</li>
+                <li>Jika server tersedia (available_until ≤ arrival_time), transaksi langsung diproses</li>
+                <li>Jika semua server sibuk, transaksi masuk antrian dan diproses saat server pertama bebas</li>
+                <li>Semua server identik dengan kapabilitas yang sama</li>
+                <li>Scheduling mengikuti prinsip <strong>First-Come-First-Served</strong> (FCFS)</li>
+            </ol>
+        </div>
+
+        <div class="gradient-divider"></div>
+
+        <h3>🎲 Monte Carlo Simulation</h3>
+        <div class="model-card">
+            <h4>Mengapa Monte Carlo?</h4>
+            <p>Dalam sistem nyata, <strong>verification time bervariasi</strong> karena berbagai faktor:</p>
+            <ul>
+                <li>🌐 Network delay</li>
+                <li>⚡ Server load variations</li>
+                <li>🏦 Payment gateway latency</li>
+            </ul>
+            <p style="margin-top:12px;"><strong>Pendekatan Monte Carlo:</strong></p>
+            <ol>
+                <li>Ambil dataset base (interarrival time tetap)</li>
+                <li>Randomize verification time setiap iterasi: VT ~ Uniform(2, 6) detik</li>
+                <li>Jalankan DES untuk setiap set VT yang baru</li>
+                <li>Ulangi 1000 kali (atau sesuai parameter)</li>
+                <li>Aggregate hasil untuk mendapatkan distribusi metrik</li>
+            </ol>
+            <p style="margin-top:12px;">Dengan 1000 iterasi, kita mendapatkan <strong>distribusi probabilistik</strong> dari metrik kinerja,
+            bukan hanya satu titik estimasi. Ini memungkinkan analisis <strong>confidence interval</strong>,
+            <strong>worst-case scenario</strong>, dan <strong>probabilitas kejadian</strong>.</p>
+        </div>
+    </section>
+
+</main>
+
+
+<!-- ===== JAVASCRIPT ===== -->
+<script>
+// ======================== GLOBAL STATE ========================
+const API_BASE = '/api';
+let currentDataSource = 'preset';
+let customDataParsed = null;
+let simulationResults = null;
+
+const SCENARIO_LABELS = {
+    sepi: '🟢 Sepi (Low Traffic)',
+    normal: '🔵 Normal (Medium Traffic)',
+    padat: '🟠 Padat (High Traffic)',
+    sangat_padat: '🔴 Sangat Padat (Very High Traffic)'
+};
+
+const PLOTLY_LAYOUT_BASE = {
+    paper_bgcolor: 'rgba(0,0,0,0)',
+    plot_bgcolor: 'rgba(0,0,0,0)',
+    font: { color: '#a0a4c4', family: 'Inter, sans-serif', size: 12 },
+    xaxis: { gridcolor: 'rgba(102,126,234,0.1)', zerolinecolor: 'rgba(102,126,234,0.2)' },
+    yaxis: { gridcolor: 'rgba(102,126,234,0.1)', zerolinecolor: 'rgba(102,126,234,0.2)' },
+    margin: { t: 50, r: 20, b: 50, l: 60 }
+};
+
+const PLOTLY_CONFIG = { responsive: true, displayModeBar: false };
+
+
+// ======================== NAVIGATION ========================
+document.querySelectorAll('.nav-item').forEach(item => {
+    item.addEventListener('click', () => {
+        const page = item.dataset.page;
+        
+        // Update nav
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+        item.classList.add('active');
+        
+        // Update pages
+        document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active'));
+        document.getElementById('page-' + page).classList.add('active');
+        
+        // Close mobile sidebar
+        document.querySelector('.sidebar').classList.remove('open');
+        
+        // Load data if needed
+        if (page === 'dataset') loadDatasetPage();
+        if (page === 'analytics') renderAnalytics();
+    });
+});
+
+
+// ======================== TABS ========================
+document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const tabId = btn.dataset.tab;
+        const parent = btn.closest('.page-section');
+        parent.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        parent.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById(tabId).classList.add('active');
+    });
+});
+
+
+// ======================== DATASET PAGE ========================
+const datasetSelect = document.getElementById('datasetScenarioSelect');
+datasetSelect.addEventListener('change', loadDatasetPage);
+
+async function loadDatasetPage() {
+    const scenario = datasetSelect.value;
+    try {
+        const resp = await fetch(`${API_BASE}/dataset/${scenario}`);
+        if (!resp.ok) throw new Error('Failed to load dataset');
+        const data = await resp.json();
+        renderDatasetInfo(data);
+        renderDatasetTable(data.transactions);
+        renderDistributions(data.transactions, data.statistics);
+    } catch (err) {
+        document.getElementById('datasetInfo').innerHTML =
+            `<div class="warning-box">❌ Gagal memuat dataset: ${err.message}</div>`;
+    }
+}
+
+function renderDatasetInfo(data) {
+    const s = data.statistics;
+    document.getElementById('datasetInfo').innerHTML = `
+        <h3 style="margin-top:8px;">📋 ${data.scenario_name} — <em style="font-weight:400;color:var(--text-muted)">${data.description}</em></h3>
+        <div class="kpi-grid">
+            <div class="kpi-card">
+                <div class="kpi-label">Total Transaksi</div>
+                <div class="kpi-value">${s.total_transactions}</div>
+            </div>
+            <div class="kpi-card blue">
+                <div class="kpi-label">Avg Interarrival</div>
+                <div class="kpi-value">${s.avg_interarrival.toFixed(2)}s</div>
+            </div>
+            <div class="kpi-card green">
+                <div class="kpi-label">Avg Verif. Time</div>
+                <div class="kpi-value">${s.avg_verification_time.toFixed(2)}s</div>
+            </div>
+            <div class="kpi-card orange">
+                <div class="kpi-label">Total Sim. Time</div>
+                <div class="kpi-value">${s.total_simulation_time.toFixed(1)}s</div>
+            </div>
+        </div>
+    `;
+}
+
+function renderDatasetTable(transactions) {
+    let html = '<table class="data-table"><thead><tr><th>No</th><th>Transaction ID</th><th>Interarrival Time (s)</th><th>Verification Time (s)</th></tr></thead><tbody>';
+    transactions.forEach((tx, i) => {
+        html += `<tr><td>${i+1}</td><td>${tx.transaction_id}</td><td>${tx.interarrival_time.toFixed(4)}</td><td>${tx.verification_time.toFixed(4)}</td></tr>`;
+    });
+    html += '</tbody></table>';
+    document.getElementById('datasetTableWrapper').innerHTML = html;
+}
+
+function renderDistributions(transactions, stats) {
+    const iaValues = transactions.map(t => t.interarrival_time);
+    const vtValues = transactions.map(t => t.verification_time);
+    
+    Plotly.newPlot('chartDistIA', [{
+        x: iaValues, type: 'histogram', nbinsx: 20,
+        marker: { color: '#667eea' }
+    }], {
+        ...PLOTLY_LAYOUT_BASE,
+        title: { text: 'Distribusi Interarrival Time', font: { size: 14, color: '#e8eaf6' } },
+        xaxis: { ...PLOTLY_LAYOUT_BASE.xaxis, title: 'Interarrival Time (detik)' },
+        yaxis: { ...PLOTLY_LAYOUT_BASE.yaxis, title: 'Frekuensi' }
+    }, PLOTLY_CONFIG);
+    
+    Plotly.newPlot('chartDistVT', [{
+        x: vtValues, type: 'histogram', nbinsx: 20,
+        marker: { color: '#764ba2' }
+    }], {
+        ...PLOTLY_LAYOUT_BASE,
+        title: { text: 'Distribusi Verification Time', font: { size: 14, color: '#e8eaf6' } },
+        xaxis: { ...PLOTLY_LAYOUT_BASE.xaxis, title: 'Verification Time (detik)' },
+        yaxis: { ...PLOTLY_LAYOUT_BASE.yaxis, title: 'Frekuensi' }
+    }, PLOTLY_CONFIG);
+    
+    document.getElementById('datasetStats').innerHTML = `
+        <h3>📈 Statistik Detail</h3>
+        <div class="grid-2">
+            <div>
+                <p style="font-weight:600; margin-bottom:6px;">Interarrival Time</p>
+                <ul style="font-size:13px; color:var(--text-secondary); line-height:2;">
+                    <li>Min: <code style="color:#c0c8ff">${stats.min_interarrival.toFixed(4)}</code> s</li>
+                    <li>Max: <code style="color:#c0c8ff">${stats.max_interarrival.toFixed(4)}</code> s</li>
+                    <li>Mean: <code style="color:#c0c8ff">${stats.avg_interarrival.toFixed(4)}</code> s</li>
+                </ul>
+            </div>
+            <div>
+                <p style="font-weight:600; margin-bottom:6px;">Verification Time</p>
+                <ul style="font-size:13px; color:var(--text-secondary); line-height:2;">
+                    <li>Min: <code style="color:#c0c8ff">${stats.min_verification_time.toFixed(4)}</code> s</li>
+                    <li>Max: <code style="color:#c0c8ff">${stats.max_verification_time.toFixed(4)}</code> s</li>
+                    <li>Mean: <code style="color:#c0c8ff">${stats.avg_verification_time.toFixed(4)}</code> s</li>
+                </ul>
+            </div>
+        </div>
+    `;
+}
+
+
+// ======================== CUSTOM DATA ========================
+function processCustomData() {
+    const text = document.getElementById('customDataInput').value.trim();
+    const resultDiv = document.getElementById('customDataResult');
+    
+    if (!text) {
+        resultDiv.innerHTML = '<div class="warning-box">⚠️ Silakan masukkan data terlebih dahulu</div>';
+        return;
+    }
+    
+    const lines = text.split('\n');
+    if (lines.length < 2) {
+        resultDiv.innerHTML = '<div class="warning-box">❌ Minimal 2 baris diperlukan (1 header + 1 data)</div>';
+        return;
+    }
+    
+    const header = lines[0].split(',').map(h => h.trim());
+    const expected = ['Transaction_ID', 'Interarrival_Time', 'Verification_Time'];
+    
+    if (JSON.stringify(header.sort()) !== JSON.stringify(expected.sort())) {
+        resultDiv.innerHTML = `<div class="warning-box">❌ Kolom harus: Transaction_ID, Interarrival_Time, Verification_Time<br>(Diterima: ${header.join(', ')})</div>`;
+        return;
+    }
+    
+    const rows = [];
+    for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+        const vals = line.split(',').map(v => v.trim());
+        if (vals.length !== 3) {
+            resultDiv.innerHTML = `<div class="warning-box">❌ Baris ${i+1}: Harus ada 3 kolom, ditemukan ${vals.length}</div>`;
+            return;
+        }
+        const ia = parseFloat(vals[1]);
+        const vt = parseFloat(vals[2]);
+        if (isNaN(ia) || isNaN(vt)) {
+            resultDiv.innerHTML = `<div class="warning-box">❌ Baris ${i+1}: Interarrival_Time dan Verification_Time harus angka</div>`;
+            return;
+        }
+        if (ia < 0 || vt < 0) {
+            resultDiv.innerHTML = `<div class="warning-box">❌ Baris ${i+1}: Waktu tidak boleh negatif</div>`;
+            return;
+        }
+        rows.push({ Transaction_ID: vals[0], Interarrival_Time: ia, Verification_Time: vt });
+    }
+    
+    if (rows.length === 0) {
+        resultDiv.innerHTML = '<div class="warning-box">❌ Tidak ada data ditemukan</div>';
+        return;
+    }
+    
+    customDataParsed = rows;
+    
+    const avgIA = rows.reduce((s, r) => s + r.Interarrival_Time, 0) / rows.length;
+    const avgVT = rows.reduce((s, r) => s + r.Verification_Time, 0) / rows.length;
+    const totalTime = rows.reduce((s, r) => s + r.Interarrival_Time, 0);
+    
+    resultDiv.innerHTML = `
+        <div class="success-box">✅ Data berhasil diproses! ${rows.length} transaksi dimuat.</div>
+        <div class="kpi-grid">
+            <div class="kpi-card"><div class="kpi-label">Total Transaksi</div><div class="kpi-value">${rows.length}</div></div>
+            <div class="kpi-card blue"><div class="kpi-label">Avg Interarrival</div><div class="kpi-value">${avgIA.toFixed(2)}s</div></div>
+            <div class="kpi-card green"><div class="kpi-label">Avg Verif. Time</div><div class="kpi-value">${avgVT.toFixed(2)}s</div></div>
+            <div class="kpi-card orange"><div class="kpi-label">Total Waktu</div><div class="kpi-value">${totalTime.toFixed(1)}s</div></div>
+        </div>
+        <div class="success-box">💾 Data custom siap untuk simulasi! Pilih "Data Custom" di halaman Simulation.</div>
+    `;
+}
+
+
+// ======================== SIMULATION ========================
+function setDataSource(value) {
+    currentDataSource = value;
+    document.querySelectorAll('#dataSourceRadio .radio-option').forEach(opt => {
+        opt.classList.toggle('active', opt.dataset.value === value);
+    });
+    
+    const scenarioGroup = document.getElementById('simScenarioGroup');
+    const statusDiv = document.getElementById('customDataStatus');
+    
+    if (value === 'preset') {
+        scenarioGroup.style.display = 'block';
+        statusDiv.innerHTML = '';
+    } else {
+        scenarioGroup.style.display = 'none';
+        if (customDataParsed && customDataParsed.length > 0) {
+            statusDiv.innerHTML = `<div class="success-box">✅ Data Custom: ${customDataParsed.length} transaksi siap</div>`;
+        } else {
+            statusDiv.innerHTML = '<div class="warning-box">⚠️ Belum ada data custom. Buat di tab Dataset → Data Custom</div>';
+        }
+    }
+}
+
+async function runSimulation() {
+    const btn = document.getElementById('runSimBtn');
+    const progressWrapper = document.getElementById('simProgress');
+    const progressFill = document.getElementById('simProgressFill');
+    const progressText = document.getElementById('simProgressText');
+    const resultsDiv = document.getElementById('simResults');
+    
+    // Validate custom data
+    if (currentDataSource === 'custom' && (!customDataParsed || customDataParsed.length === 0)) {
+        resultsDiv.innerHTML = '<div class="warning-box">❌ Data custom tidak ditemukan. Silakan input data di tab Dataset → Data Custom terlebih dahulu.</div>';
+        return;
+    }
+    
+    btn.disabled = true;
+    progressWrapper.style.display = 'block';
+    progressFill.style.width = '10%';
+    progressText.textContent = '⏳ Mengirim ke server...';
+    resultsDiv.innerHTML = '';
+    
+    const body = {
+        num_servers: parseInt(document.getElementById('numServersInput').value) || 4,
+        mc_iterations: parseInt(document.getElementById('mcIterationsSelect').value) || 100
+    };
+    
+    if (currentDataSource === 'preset') {
+        body.scenario = document.getElementById('simScenarioSelect').value;
+    } else {
+        body.custom_data = customDataParsed;
+    }
+    
+    // Show loading
+    document.getElementById('loadingOverlay').classList.add('active');
+    document.getElementById('loadingText').textContent = `Menjalankan simulasi (${body.mc_iterations} iterasi Monte Carlo)...`;
+    
+    progressFill.style.width = '30%';
+    progressText.textContent = '⏳ Menjalankan simulasi DES + Monte Carlo...';
+    
+    try {
+        const resp = await fetch(`${API_BASE}/simulate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        
+        if (!resp.ok) {
+            const err = await resp.json();
+            throw new Error(err.error || 'Simulasi gagal');
+        }
+        
+        progressFill.style.width = '80%';
+        progressText.textContent = '⏳ Memproses hasil...';
+        
+        simulationResults = await resp.json();
+        simulationResults._scenario = body.scenario || 'custom';
+        
+        progressFill.style.width = '100%';
+        progressText.textContent = '✅ Simulasi selesai!';
+        
+        renderSimulationResults(simulationResults, resultsDiv);
+        
+    } catch (err) {
+        resultsDiv.innerHTML = `<div class="warning-box">❌ Error: ${err.message}</div>`;
+    } finally {
+        btn.disabled = false;
+        document.getElementById('loadingOverlay').classList.remove('active');
+    }
+}
+
+function renderSimulationResults(data, container) {
+    const agg = data.mc_aggregated;
+    const des = data.des_results;
+    const params = data.params;
+    
+    let html = '<div class="gradient-divider"></div>';
+    
+    // ---- Real-time server view ----
+    html += '<h3>🖥️ Simulasi Real-Time — Single DES Run</h3>';
+    html += `<div class="form-group"><label>⏱️ Waktu Simulasi (detik)</label>
+        <input type="range" class="range-slider" id="timeSlider" min="0" max="${data.time_points.length - 1}" value="${Math.floor(data.time_points.length / 2)}" oninput="updateServerView()">
+        <p style="font-size:13px; color:var(--text-muted);" id="timeSliderLabel">t = ${data.time_points[Math.floor(data.time_points.length / 2)]}s</p>
+    </div>`;
+    html += '<div id="serverViewContainer"></div>';
+    
+    html += '<div class="gradient-divider"></div>';
+    
+    // ---- DES detail expander ----
+    html += `<div class="expander">
+        <div class="expander-header" onclick="toggleExpander(this)">📋 Detail Hasil DES (Single Run) <span class="arrow">▼</span></div>
+        <div class="expander-body"><div class="data-table-wrapper" id="desResultsTable"></div></div>
+    </div>`;
+    
+    html += '<div class="gradient-divider"></div>';
+    
+    // ---- KPI Cards ----
+    html += `<h3>🎲 Monte Carlo — ${params.mc_iterations} Iterasi</h3>`;
+    html += '<h3>📊 Hasil Simulasi (KPI)</h3>';
+    html += `<div class="kpi-grid">
+        <div class="kpi-card"><div class="kpi-label">Avg Waiting Time</div><div class="kpi-value">${agg.Avg_Waiting_Time.toFixed(2)}s</div></div>
+        <div class="kpi-card blue"><div class="kpi-label">Server Utilization</div><div class="kpi-value">${agg.Avg_Server_Utilization.toFixed(1)}%</div></div>
+        <div class="kpi-card green"><div class="kpi-label">Avg Queue Length</div><div class="kpi-value">${agg.Avg_Queue_Length.toFixed(2)}</div></div>
+        <div class="kpi-card orange"><div class="kpi-label">Completion Time</div><div class="kpi-value">${agg.Avg_Completion_Time.toFixed(1)}s</div></div>
+    </div>`;
+    
+    html += '<div class="gradient-divider"></div>';
+    
+    // ---- Quick charts ----
+    html += '<h3>📈 Grafik Cepat</h3>';
+    html += '<div class="grid-2"><div class="chart-container" id="simChartWT"></div><div class="chart-container" id="simChartCT"></div></div>';
+    
+    html += '<div class="success-box">✅ Simulasi selesai! Buka tab <strong>📈 Analytics</strong> untuk visualisasi lengkap.</div>';
+    
+    container.innerHTML = html;
+    
+    // Render DES table
+    let tableHtml = '<table class="data-table"><thead><tr><th>ID</th><th>Arrival</th><th>Start</th><th>End</th><th>Verif. Time</th><th>Waiting</th><th>Server</th><th>Queue</th></tr></thead><tbody>';
+    des.forEach(r => {
+        tableHtml += `<tr><td>${r.Transaction_ID}</td><td>${r.Arrival_Time.toFixed(2)}</td><td>${r.Start_Time.toFixed(2)}</td><td>${r.End_Time.toFixed(2)}</td><td>${r.Verification_Time.toFixed(2)}</td><td>${r.Waiting_Time.toFixed(2)}</td><td>${r.Server_ID}</td><td>${r.Queue_Length_At_Arrival}</td></tr>`;
+    });
+    tableHtml += '</tbody></table>';
+    document.getElementById('desResultsTable').innerHTML = tableHtml;
+    
+    // Render server view
+    updateServerView();
+    
+    // Render quick charts
+    const mcMetrics = data.mc_metrics;
+    
+    Plotly.newPlot('simChartWT', [{
+        x: mcMetrics.map(m => m.Avg_Waiting_Time),
+        type: 'histogram', nbinsx: 30,
+        marker: { color: '#667eea' }
+    }], {
+        ...PLOTLY_LAYOUT_BASE,
+        title: { text: 'Histogram: Avg Waiting Time (MC)', font: { size: 14, color: '#e8eaf6' } },
+        xaxis: { ...PLOTLY_LAYOUT_BASE.xaxis, title: 'Avg Waiting Time (s)' },
+        yaxis: { ...PLOTLY_LAYOUT_BASE.yaxis, title: 'Frekuensi' },
+        shapes: [{ type: 'line', x0: agg.Avg_Waiting_Time, x1: agg.Avg_Waiting_Time, y0: 0, y1: 1, yref: 'paper', line: { color: '#f5576c', dash: 'dash', width: 2 } }],
+        annotations: [{ x: agg.Avg_Waiting_Time, y: 1, yref: 'paper', text: `Mean: ${agg.Avg_Waiting_Time.toFixed(3)}s`, showarrow: false, font: { color: '#f5576c', size: 11 }, yanchor: 'bottom' }]
+    }, PLOTLY_CONFIG);
+    
+    Plotly.newPlot('simChartCT', [{
+        x: mcMetrics.map(m => m.Total_Completion_Time),
+        type: 'histogram', nbinsx: 30,
+        marker: { color: '#764ba2' }
+    }], {
+        ...PLOTLY_LAYOUT_BASE,
+        title: { text: 'Histogram: Total Completion Time (MC)', font: { size: 14, color: '#e8eaf6' } },
+        xaxis: { ...PLOTLY_LAYOUT_BASE.xaxis, title: 'Completion Time (s)' },
+        yaxis: { ...PLOTLY_LAYOUT_BASE.yaxis, title: 'Frekuensi' },
+        shapes: [{ type: 'line', x0: agg.Avg_Completion_Time, x1: agg.Avg_Completion_Time, y0: 0, y1: 1, yref: 'paper', line: { color: '#f5576c', dash: 'dash', width: 2 } }],
+        annotations: [{ x: agg.Avg_Completion_Time, y: 1, yref: 'paper', text: `Mean: ${agg.Avg_Completion_Time.toFixed(1)}s`, showarrow: false, font: { color: '#f5576c', size: 11 }, yanchor: 'bottom' }]
+    }, PLOTLY_CONFIG);
+}
+
+function updateServerView() {
+    if (!simulationResults) return;
+    const slider = document.getElementById('timeSlider');
+    const idx = parseInt(slider.value);
+    const t = simulationResults.time_points[idx];
+    const tStr = t.toString();
+    
+    document.getElementById('timeSliderLabel').textContent = `t = ${t}s`;
+    
+    const state = simulationResults.server_states[tStr];
+    if (!state) return;
+    
+    const numServers = simulationResults.params.num_servers;
+    let html = `<p style="font-weight:600; margin-bottom:8px;">⏱️ Time = ${t.toFixed(2)}s</p>`;
+    html += '<div class="server-grid">';
+    
+    for (let s = 1; s <= numServers; s++) {
+        const srv = state.servers[s.toString()];
+        if (srv && srv.status === 'Busy') {
+            const progress = srv.progress ? srv.progress.toFixed(0) : 0;
+            html += `<div class="server-box server-busy">Server ${s}<br><strong>${srv.transaction}</strong><br><small>${progress}%</small></div>`;
+        } else {
+            html += `<div class="server-box server-idle">Server ${s}<br><strong>Idle</strong></div>`;
+        }
+    }
+    html += '</div>';
+    
+    // Queue
+    if (state.queue && state.queue.length > 0) {
+        html += `<p style="font-weight:600; margin-top:12px;">📋 Antrian (${state.queue.length}): `;
+        state.queue.forEach(tx => { html += `<span class="queue-item">${tx}</span>`; });
+        html += '</p>';
+    } else {
+        html += '<p style="margin-top:8px; color:var(--text-muted);">📋 Antrian: — <em>(Kosong)</em></p>';
+    }
+    
+    document.getElementById('serverViewContainer').innerHTML = html;
+}
+
+
+// ======================== ANALYTICS PAGE ========================
+function renderAnalytics() {
+    const container = document.getElementById('analyticsContent');
+    
+    if (!simulationResults) {
+        container.innerHTML = '<div class="warning-box">⚠️ Belum ada hasil simulasi. Silakan jalankan simulasi terlebih dahulu di tab <strong>🚀 Simulation</strong>.</div>';
+        return;
+    }
+    
+    const agg = simulationResults.mc_aggregated;
+    const des = simulationResults.des_results;
+    const mcMetrics = simulationResults.mc_metrics;
+    const params = simulationResults.params;
+    const scenario = simulationResults._scenario;
+    const scenarioLabel = SCENARIO_LABELS[scenario] || 'Data Custom';
+    
+    let html = `<p style="font-size:13px; color:var(--text-muted); margin-bottom:16px;">
+        <strong>Skenario:</strong> ${scenarioLabel} | <strong>Server:</strong> ${params.num_servers} | 
+        <strong>Iterasi MC:</strong> ${params.mc_iterations}
+    </p>`;
+    
+    html += '<div class="gradient-divider"></div>';
+    
+    // KPI
+    html += `<div class="kpi-grid">
+        <div class="kpi-card"><div class="kpi-label">Avg Waiting Time</div><div class="kpi-value">${agg.Avg_Waiting_Time.toFixed(2)}s</div></div>
+        <div class="kpi-card blue"><div class="kpi-label">Server Utilization</div><div class="kpi-value">${agg.Avg_Server_Utilization.toFixed(1)}%</div></div>
+        <div class="kpi-card green"><div class="kpi-label">Avg Queue Length</div><div class="kpi-value">${agg.Avg_Queue_Length.toFixed(2)}</div></div>
+        <div class="kpi-card orange"><div class="kpi-label">Completion Time</div><div class="kpi-value">${agg.Avg_Completion_Time.toFixed(1)}s</div></div>
+    </div>`;
+    
+    html += '<div class="gradient-divider"></div>';
+    
+    // Charts
+    html += '<h3>Grafik 1: Waiting Time per Transaksi</h3><div class="chart-container" id="analyticsChart1"></div>';
+    html += '<h3>Grafik 2: Queue Length Over Time</h3><div class="chart-container" id="analyticsChart2"></div>';
+    html += '<h3>Grafik 3: Server Utilization (Gantt Chart)</h3><div class="chart-container" id="analyticsChart3"></div>';
+    html += '<div class="grid-2"><div><h3>Grafik 4: Completion Time</h3><div class="chart-container" id="analyticsChart4"></div></div><div><h3>Grafik 5: Waiting Time (MC)</h3><div class="chart-container" id="analyticsChart5"></div></div></div>';
+    html += '<h3>Grafik 6: Boxplot Hasil Monte Carlo</h3><div class="chart-container" id="analyticsChart6"></div>';
+    html += '<h3>📉 Konvergensi Monte Carlo</h3><div class="chart-container" id="analyticsChart7"></div>';
+    
+    // Detail table expander
+    html += `<div class="expander">
+        <div class="expander-header" onclick="toggleExpander(this)">📋 Tabel Metrik Lengkap <span class="arrow">▼</span></div>
+        <div class="expander-body">
+            <h3>Aggregated Metrics</h3>
+            <div class="data-table-wrapper" id="analyticsAggTable"></div>
+            <h3 style="margin-top:20px;">Per-Iteration Metrics (Sample)</h3>
+            <div class="data-table-wrapper" id="analyticsIterTable"></div>
+        </div>
+    </div>`;
+    
+    container.innerHTML = html;
+    
+    // Render all charts
+    renderAnalyticsCharts(des, mcMetrics, agg, params);
+}
+
+function renderAnalyticsCharts(des, mcMetrics, agg, params) {
+    const colors8 = ['#667eea', '#764ba2', '#f093fb', '#4facfe', '#43e97b', '#fa709a', '#fee140', '#f5576c'];
+    
+    // Chart 1: Waiting Time per Transaction
+    Plotly.newPlot('analyticsChart1', [{
+        x: des.map(r => r.Transaction_ID),
+        y: des.map(r => r.Waiting_Time),
+        type: 'bar',
+        marker: { color: des.map(r => r.Waiting_Time === 0 ? '#43e97b' : (r.Waiting_Time > 2 ? '#fa709a' : '#4facfe')) },
+        text: des.map(r => r.Waiting_Time.toFixed(2) + 's'),
+        textposition: 'outside',
+        textfont: { size: 10, color: '#a0a4c4' }
+    }], {
+        ...PLOTLY_LAYOUT_BASE,
+        title: { text: 'Waiting Time per Transaksi (Single DES Run)', font: { size: 14, color: '#e8eaf6' } },
+        xaxis: { ...PLOTLY_LAYOUT_BASE.xaxis, title: 'Transaction ID' },
+        yaxis: { ...PLOTLY_LAYOUT_BASE.yaxis, title: 'Waiting Time (detik)' },
+        height: 400
+    }, PLOTLY_CONFIG);
+    
+    // Chart 2: Queue Length
+    Plotly.newPlot('analyticsChart2', [{
+        x: des.map(r => r.Arrival_Time),
+        y: des.map(r => r.Queue_Length_At_Arrival),
+        mode: 'lines+markers',
+        name: 'Queue Length',
+        line: { color: '#667eea', width: 2 },
+        marker: { size: 6 },
+        fill: 'tozeroy',
+        fillcolor: 'rgba(102, 126, 234, 0.15)'
+    }], {
+        ...PLOTLY_LAYOUT_BASE,
+        title: { text: 'Panjang Antrian saat Kedatangan Transaksi', font: { size: 14, color: '#e8eaf6' } },
+        xaxis: { ...PLOTLY_LAYOUT_BASE.xaxis, title: 'Waktu (detik)' },
+        yaxis: { ...PLOTLY_LAYOUT_BASE.yaxis, title: 'Queue Length' },
+        height: 400
+    }, PLOTLY_CONFIG);
+    
+    // Chart 3: Gantt Chart
+    const ganttTraces = des.map((r, i) => ({
+        x: [r.Verification_Time],
+        y: [`Server ${r.Server_ID}`],
+        base: [r.Start_Time],
+        orientation: 'h',
+        type: 'bar',
+        marker: { color: colors8[i % colors8.length] },
+        text: [r.Transaction_ID],
+        textposition: 'inside',
+        textfont: { size: 10, color: '#fff' },
+        hovertemplate: `<b>${r.Transaction_ID}</b><br>Start: ${r.Start_Time.toFixed(2)}s<br>End: ${r.End_Time.toFixed(2)}s<br>Duration: ${r.Verification_Time.toFixed(2)}s<extra></extra>`,
+        showlegend: false
+    }));
+    
+    Plotly.newPlot('analyticsChart3', ganttTraces, {
+        ...PLOTLY_LAYOUT_BASE,
+        title: { text: 'Timeline Penggunaan Server', font: { size: 14, color: '#e8eaf6' } },
+        xaxis: { ...PLOTLY_LAYOUT_BASE.xaxis, title: 'Waktu (detik)' },
+        yaxis: { ...PLOTLY_LAYOUT_BASE.yaxis, title: 'Server' },
+        barmode: 'stack',
+        height: 300
+    }, PLOTLY_CONFIG);
+    
+    // Chart 4: Completion Time Distribution
+    Plotly.newPlot('analyticsChart4', [{
+        x: mcMetrics.map(m => m.Total_Completion_Time),
+        type: 'histogram', nbinsx: 30,
+        marker: { color: '#764ba2' }
+    }], {
+        ...PLOTLY_LAYOUT_BASE,
+        title: { text: 'Distribusi Total Completion Time (MC)', font: { size: 14, color: '#e8eaf6' } },
+        shapes: [{ type: 'line', x0: agg.Avg_Completion_Time, x1: agg.Avg_Completion_Time, y0: 0, y1: 1, yref: 'paper', line: { color: '#f5576c', dash: 'dash', width: 2 } }],
+        annotations: [{ x: agg.Avg_Completion_Time, y: 1, yref: 'paper', text: `μ = ${agg.Avg_Completion_Time.toFixed(2)}s`, showarrow: false, font: { color: '#f5576c' }, yanchor: 'bottom' }],
+        height: 400
+    }, PLOTLY_CONFIG);
+    
+    // Chart 5: Waiting Time MC
+    Plotly.newPlot('analyticsChart5', [{
+        x: mcMetrics.map(m => m.Avg_Waiting_Time),
+        type: 'histogram', nbinsx: 30,
+        marker: { color: '#667eea' }
+    }], {
+        ...PLOTLY_LAYOUT_BASE,
+        title: { text: 'Distribusi Avg Waiting Time (MC)', font: { size: 14, color: '#e8eaf6' } },
+        shapes: [{ type: 'line', x0: agg.Avg_Waiting_Time, x1: agg.Avg_Waiting_Time, y0: 0, y1: 1, yref: 'paper', line: { color: '#f5576c', dash: 'dash', width: 2 } }],
+        annotations: [{ x: agg.Avg_Waiting_Time, y: 1, yref: 'paper', text: `μ = ${agg.Avg_Waiting_Time.toFixed(3)}s`, showarrow: false, font: { color: '#f5576c' }, yanchor: 'bottom' }],
+        height: 400
+    }, PLOTLY_CONFIG);
+    
+    // Chart 6: Boxplot
+    const boxColors = ['#667eea', '#764ba2', '#43e97b', '#fa709a'];
+    const boxNames = ['Avg Waiting Time', 'Max Waiting Time', 'Server Utilization (%)', 'Completion Time'];
+    const boxData = [
+        mcMetrics.map(m => m.Avg_Waiting_Time),
+        mcMetrics.map(m => m.Max_Waiting_Time),
+        mcMetrics.map(m => m.Server_Utilization),
+        mcMetrics.map(m => m.Total_Completion_Time)
+    ];
+    
+    Plotly.newPlot('analyticsChart6', boxData.map((d, i) => ({
+        y: d, type: 'box', name: boxNames[i],
+        marker: { color: boxColors[i] },
+        boxmean: 'sd'
+    })), {
+        ...PLOTLY_LAYOUT_BASE,
+        title: { text: 'Distribusi Metrik dari Monte Carlo Simulation', font: { size: 14, color: '#e8eaf6' } },
+        showlegend: false,
+        height: 450
+    }, PLOTLY_CONFIG);
+    
+    // Chart 7: Convergence
+    const runningAvg = [];
+    let sum = 0;
+    mcMetrics.forEach((m, i) => {
+        sum += m.Avg_Waiting_Time;
+        runningAvg.push(sum / (i + 1));
+    });
+    
+    Plotly.newPlot('analyticsChart7', [{
+        x: mcMetrics.map(m => m.Iteration),
+        y: runningAvg,
+        mode: 'lines',
+        name: 'Running Average',
+        line: { color: '#667eea', width: 2 }
+    }], {
+        ...PLOTLY_LAYOUT_BASE,
+        title: { text: 'Konvergensi Running Average — Avg Waiting Time', font: { size: 14, color: '#e8eaf6' } },
+        xaxis: { ...PLOTLY_LAYOUT_BASE.xaxis, title: 'Iterasi' },
+        yaxis: { ...PLOTLY_LAYOUT_BASE.yaxis, title: 'Running Average Waiting Time (s)' },
+        shapes: [{ type: 'line', x0: 0, x1: mcMetrics.length, y0: agg.Avg_Waiting_Time, y1: agg.Avg_Waiting_Time, line: { color: '#f5576c', dash: 'dash', width: 2 } }],
+        annotations: [{ x: mcMetrics.length, y: agg.Avg_Waiting_Time, text: `Final: ${agg.Avg_Waiting_Time.toFixed(4)}s`, showarrow: false, font: { color: '#f5576c' }, xanchor: 'right' }],
+        height: 400
+    }, PLOTLY_CONFIG);
+    
+    // Aggregated table
+    let aggTableHtml = '<table class="data-table"><thead><tr><th>Metric</th><th>Value</th></tr></thead><tbody>';
+    for (const [k, v] of Object.entries(agg)) {
+        aggTableHtml += `<tr><td>${k.replace(/_/g, ' ')}</td><td>${typeof v === 'number' ? v.toFixed(4) : v}</td></tr>`;
+    }
+    aggTableHtml += '</tbody></table>';
+    document.getElementById('analyticsAggTable').innerHTML = aggTableHtml;
+    
+    // Iteration table (first 20)
+    let iterTableHtml = '<table class="data-table"><thead><tr><th>Iter</th><th>Avg WT</th><th>Max WT</th><th>Util %</th><th>Completion</th><th>Avg Queue</th></tr></thead><tbody>';
+    mcMetrics.slice(0, 20).forEach(m => {
+        iterTableHtml += `<tr><td>${m.Iteration}</td><td>${m.Avg_Waiting_Time.toFixed(4)}</td><td>${m.Max_Waiting_Time.toFixed(4)}</td><td>${m.Server_Utilization.toFixed(2)}%</td><td>${m.Total_Completion_Time.toFixed(2)}</td><td>${m.Avg_Queue_Length.toFixed(2)}</td></tr>`;
+    });
+    iterTableHtml += '</tbody></table>';
+    document.getElementById('analyticsIterTable').innerHTML = iterTableHtml;
+}
+
+
+// ======================== HELPERS ========================
+function toggleExpander(header) {
+    header.classList.toggle('open');
+    const body = header.nextElementSibling;
+    body.classList.toggle('open');
+}
+
+
+// ======================== INITIAL LOAD ========================
+// Auto-load dataset page when first visited
+document.addEventListener('DOMContentLoaded', () => {
+    // Pre-fetch datasets info
+    fetch(`${API_BASE}/health`).catch(() => {});
+});
+</script>
+
+</body>
+</html>
